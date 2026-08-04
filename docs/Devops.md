@@ -31,6 +31,10 @@ with:
 kubectl config get-contexts -o name
 ```
 
+`kubectl` must be installed and available through `PATH` on the execution node.
+The Kubernetes workflows stop with an explicit error before querying or changing
+cluster resources when the command is unavailable.
+
 The intended aliases and the environment names reported by
 `kubectl config get-contexts -o name` are:
 
@@ -127,6 +131,6 @@ The existing variable form remains supported, for example
 `devscale` remains `make -f devops.mk devscale 3
 DBS_SERVER=dbs2go-phys03-r`.
 
-The DAS-style `deploy`, `push_image`, and `run_deploy` targets remain generic
+The DBS-style `deploy`, `push_image`, and `run_deploy` targets remain generic
 placeholders for future deployment development. They are separate from the
 `devinit`/`devpush`/`devrevert` development loop.

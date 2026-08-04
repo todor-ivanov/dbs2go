@@ -158,9 +158,12 @@ oracle-env:
 		[ -e "$(ORACLE_DIR)/libclntsh.so" ] && \
 		[ -f "$(ORACLE_DIR)/sdk/include/oci.h" ] && \
 		PKG_CONFIG_PATH="$(ORACLE_ENV_DIR)" pkg-config --exists oci8; then \
-		echo "Oracle environment is current; reusing $(ORACLE_ENV_DIR)"; \
+		echo ">>> Oracle environment cache hit: $(ORACLE_ENV_STAMP)"; \
+		echo ">>> Reusing $(ORACLE_ENV_DIR)"; \
 		exit 0; \
 	fi; \
+	echo ">>> Oracle environment cache is missing or invalid: $(ORACLE_ENV_STAMP)"; \
+	echo ">>> Preparing a fresh Oracle environment under $(ORACLE_ENV_DIR)"; \
 	cid=""; \
 	oracle_tmp="$(ORACLE_ENV_DIR)/oracle.tmp"; \
 	oci8_source="$(ORACLE_ENV_DIR)/oci8.source.pc"; \
@@ -191,6 +194,7 @@ oracle-env:
 	PKG_CONFIG_PATH="$(ORACLE_ENV_DIR)" pkg-config --libs oci8 >/dev/null; \
 	printf '%s\n' "$$cache_key" > "$$stamp_tmp"; \
 	mv "$$stamp_tmp" "$(ORACLE_ENV_STAMP)"; \
+	echo ">>> Oracle environment cache updated: $(ORACLE_ENV_STAMP)"; \
 	trap - EXIT HUP INT TERM
 
 oracle-arch-check:

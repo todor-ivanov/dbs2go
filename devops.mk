@@ -2,8 +2,9 @@
 # 1. Force Make to use bash instead of the default standard sh
 SHELL := /bin/bash
 EXECUTABLE := dbs2go
-ENV := $(shell kubectl config get-contexts -o name 2>/dev/null)
-CLUSTER := $(shell kubectl config view --minify -o jsonpath='{.clusters[0].name}' 2>/dev/null)
+KUBECTL := $(shell command -v kubectl 2>/dev/null)
+ENV := $(if $(KUBECTL),$(shell $(KUBECTL) config get-contexts -o name 2>/dev/null))
+CLUSTER := $(if $(KUBECTL),$(shell $(KUBECTL) config view --minify -o jsonpath='{.clusters[0].name}' 2>/dev/null))
 MAKETIME := $(shell date +%Y%m%d-%H%M%S)
 DBS2GO_SRC := $(shell pwd)
 
@@ -61,9 +62,15 @@ BACKUP_DIR = $(TMP_DIR)/backup.d
 # Setting up all needed ops directories
 _dummy := $(shell mkdir -p $(TMP_DIR) $(BACKUP_DIR))
 
-.PHONY: deploy clean build push_image run_deploy validate_dev_args confirm_deploy setup_config \
+.PHONY: deploy clean build push_image run_deploy check_kubectl validate_dev_args confirm_deploy setup_config \
 	devinit devpush devscale devrevert devstatus run_dev_init run_dev_push run_dev_scale \
 	run_dev_redirect run_dev_revert run_dev_status
+
+check_kubectl:
+	@[ -n "$(KUBECTL)" ] || { \
+		echo "ERROR: kubectl was not found in PATH."; \
+		exit 1; \
+	}
 
 validate_dev_args:
 	@if [ "$(DEVOPS_TARGET)" = "devscale" ]; then \
@@ -84,7 +91,7 @@ validate_dev_args:
 	}
 
 # Confirmation step: require interactive confirmation based on the detected environment.
-confirm_deploy:
+confirm_deploy: check_kubectl
 	@echo "========================================================================"
 	@echo " WARNING: You are deploying at K8 environment: [ $(ENV) ]"
 	@echo " Kubernetes cluster: [ $(CLUSTER) ]"
@@ -136,6 +143,9 @@ devscale: validate_dev_args confirm_deploy run_dev_scale
 devrevert: validate_dev_args confirm_deploy setup_config run_dev_revert
 
 devstatus: validate_dev_args run_dev_status
+
+# Keep direct invocation of low-level Kubernetes operations failure-sensitive too.
+run_dev_init run_dev_push run_dev_scale run_dev_redirect run_dev_revert run_dev_status: check_kubectl
 
 # 1. Force a regular clean using the standard Makefile.
 clean:

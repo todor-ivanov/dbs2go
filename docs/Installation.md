@@ -114,6 +114,13 @@ automatically extracts and validates a fresh environment. The downloaded
 CMSKubernetes template is preserved as `oci8.source.pc`, its host-specific
 form as `oci8.host.pc`, and the active copy as `oci8.pc`.
 
+The cache metadata is stored in the hidden file
+`.docker.build/oracle-env/.prepared`. Cache diagnostics name this file and
+report whether it was reused or updated. During an update, the target writes
+`.prepared.tmp` and atomically renames it to `.prepared`; failure cleanup
+removes the temporary file. `make clean` does not remove the cached Oracle
+environment.
+
 To prepare that environment and build in one command, use:
 
 ```console

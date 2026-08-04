@@ -10,10 +10,8 @@ DBS2GO_SRC := $(shell pwd)
 
 # Configuration variables:
 TMP_DIR = $(DBS2GO_SRC)/tmp
-# CONFIG_REPO = https://github.com/dmwm/CMSKubernetes.git
-# CONFIG_BRANCH = master
-CONFIG_REPO = https://github.com/todor-ivanov/CMSKubernetes.git
-CONFIG_BRANCH = feature_CreateDbsDevEnv
+CONFIG_REPO = https://github.com/dmwm/CMSKubernetes.git
+CONFIG_BRANCH = master
 CONFIG_DIR = $(TMP_DIR)/CMSKubernetes
 
 # Pilot service variables:

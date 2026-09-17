@@ -22,6 +22,12 @@ var schemaGroups = []schemaGroup{
 	{"other", "Other operational tables", "Dialect-specific operational tables outside the common Oracle model.", "#F1F3F5", "#596675"},
 }
 
+type RenderOptions struct {
+	Visualizations map[string]bool
+	Layout         string
+	SVGReferences  map[string]string
+}
+
 func renderJSON(schema *Schema) ([]byte, error) {
 	data, err := json.MarshalIndent(schema, "", "  ")
 	if err != nil {
@@ -31,36 +37,74 @@ func renderJSON(schema *Schema) ([]byte, error) {
 }
 
 func renderMarkdown(schema *Schema) string {
+	return renderMarkdownWithOptions(schema, RenderOptions{Visualizations: map[string]bool{"domains": true}, Layout: "compact"})
+}
+
+func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
+	if options.Layout == "" {
+		options.Layout = "compact"
+	}
+	if len(options.Visualizations) == 0 {
+		options.Visualizations = map[string]bool{"domains": true}
+	}
 	var b strings.Builder
 	stats := schemaStats(schema)
 	b.WriteString("# DBS relational data atlas\n\n")
 	fmt.Fprintf(&b, "> Generated from [`%s`](../../static/schema/DDL/%s) (%s, SHA-256 `%s`) with %s %s. This is the persisted database structure defined by the DDL, not a live database inventory.\n\n", schema.Source.File, schema.Source.File, schema.Source.Dialect, schema.Source.SHA256, schema.Parser.Name, schema.Parser.Version)
 	fmt.Fprintf(&b, "**%d tables · %d columns · %d primary keys · %d unique constraints · %d checks · %d foreign keys · %d explicit indexes**\n\n", len(schema.Tables), columnCount(schema), stats.PrimaryKeys, stats.Unique, stats.Checks, len(schema.ForeignKeys), stats.Indexes)
-	b.WriteString("[Architecture](#architecture) · [Relational maps](#relational-maps) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)\n\n")
-	b.WriteString("Legend: `PK` primary key · `FK` foreign key · `UQ` unique key · `NN` not null · arrows run from referencing column to referenced column.\n\n")
+	b.WriteString("[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)\n\n")
+	fmt.Fprintf(&b, "Selected visualizations: **%s** · layout: **%s**.\n\n", strings.Join(selectedVisualizations(options.Visualizations), ", "), options.Layout)
+
+	b.WriteString(renderLegend(options.Layout))
 
 	b.WriteString("## Architecture\n\n")
-	b.WriteString("The schema has five functional areas. The central persisted-data path is dataset → block → file → luminosity section; lookup tables classify those records, parentage tables record provenance, configuration tables describe producing software, and migration tables track transfers.\n\n")
-	b.WriteString(renderArchitecture())
+	b.WriteString("The schema has five functional areas. The central structural path is dataset → block → file → luminosity section; lookup tables classify those records, parentage tables link provenance, configuration tables describe producing software, and migration tables record transfers.\n\n")
+	b.WriteString(renderArchitecture(options.Layout))
 	b.WriteString("\n")
 
-	b.WriteString("<details open>\n<summary><strong>Whole-schema relationship overview</strong> — table landscape</summary>\n\n")
-	b.WriteString("This overview is intentionally table-level. Open the domain maps below for exact column endpoints.\n\n")
-	b.WriteString(renderOverview(schema))
-	b.WriteString("\n</details>\n\n")
-
-	b.WriteString("## Relational maps\n\n")
-	b.WriteString("Each domain map renders tables with their columns and connects every originating foreign key to its exact referenced column. The maps are folded to keep the GitHub page compact.\n\n")
-	for _, group := range schemaGroups {
-		members := tablesInGroup(schema, group.Key)
-		if len(members) == 0 {
-			continue
-		}
-		fks := foreignKeysForGroup(schema.ForeignKeys, group.Key)
-		fmt.Fprintf(&b, "<details>\n<summary><strong>%s</strong> — %s, %s</summary>\n\n", group.Title, countNoun(len(members), "primary table"), countNoun(len(fks), "foreign key"))
-		fmt.Fprintf(&b, "%s\n\n", group.Description)
-		b.WriteString(renderDomainMap(schema, group, members, fks))
+	b.WriteString("## Visualizations\n\n")
+	b.WriteString("Each selected representation is folded independently. Compact spacing is applied to every Mermaid flowchart; full column data remains available in the table dictionary.\n\n")
+	if options.Visualizations["full"] {
+		b.WriteString("<details>\n<summary><strong>Full flowchart</strong> — every table and every column, with exact FK endpoints</summary>\n\n")
+		b.WriteString("This is the direct compacted form of the original all-column output. It is complete but necessarily the largest Mermaid view.\n\n")
+		b.WriteString(renderFullMap(schema, options.Layout))
 		b.WriteString("\n</details>\n\n")
+	}
+	if options.Visualizations["er"] {
+		b.WriteString("<details>\n<summary><strong>ER view</strong> — compact database tables with every column</summary>\n\n")
+		b.WriteString("Mermaid ER notation is compact and familiar. Relationships attach to entities; use the key or domain maps when exact row endpoints are required.\n\n")
+		b.WriteString(renderERDiagram(schema))
+		b.WriteString("\n</details>\n\n")
+	}
+	if options.Visualizations["keys"] {
+		b.WriteString("<details>\n<summary><strong>Schema-wide key map</strong> — PK/FK/UQ columns and exact arrows</summary>\n\n")
+		b.WriteString("Non-relational columns are folded into the table dictionary, making this view substantially smaller than the full flowchart.\n\n")
+		b.WriteString(renderKeyMap(schema, options.Layout))
+		b.WriteString("\n</details>\n\n")
+	}
+	if options.Visualizations["domains"] {
+		for _, group := range schemaGroups {
+			members := tablesInGroup(schema, group.Key)
+			if len(members) == 0 {
+				continue
+			}
+			fks := foreignKeysForGroup(schema.ForeignKeys, group.Key)
+			fmt.Fprintf(&b, "<details>\n<summary><strong>Domain map: %s</strong> — %s, %s</summary>\n\n", group.Title, countNoun(len(members), "primary table"), countNoun(len(fks), "foreign key"))
+			fmt.Fprintf(&b, "%s Only relationship-bearing columns are expanded; each header reports folded columns.\n\n", group.Description)
+			b.WriteString(renderDomainMap(schema, group, members, fks, options.Layout))
+			b.WriteString("\n</details>\n\n")
+		}
+	}
+	if options.Visualizations["svg"] {
+		for _, group := range schemaGroups {
+			ref := options.SVGReferences[group.Key]
+			if ref == "" {
+				continue
+			}
+			fmt.Fprintf(&b, "<details>\n<summary><strong>Go-native SVG: %s</strong> — fixed table cards and column ports</summary>\n\n", group.Title)
+			fmt.Fprintf(&b, "[Open the SVG at full size](%s)\n\n![%s relational SVG](%s)\n\n", ref, group.Title, ref)
+			b.WriteString("</details>\n\n")
+		}
 	}
 
 	b.WriteString("## Foreign-key registry\n\n")
@@ -122,8 +166,8 @@ func schemaStats(schema *Schema) stats {
 	return out
 }
 
-func renderArchitecture() string {
-	return "```mermaid\n" +
+func renderArchitecture(layout string) string {
+	return "```mermaid\n" + mermaidDirective(layout) + "\n" +
 		"flowchart LR\n" +
 		"  DS[\"DATASETS<br/>published dataset identity\"] -->|DS_BK| BK[\"BLOCKS<br/>transfer and storage unit\"]\n" +
 		"  DS -->|DS_FL| FL[\"FILES<br/>physical data files\"]\n" +
@@ -162,10 +206,9 @@ func renderOverview(schema *Schema) string {
 	return b.String()
 }
 
-func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey) string {
-	memberSet, tableSet := map[string]bool{}, map[string]bool{}
+func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey, layout string) string {
+	tableSet := map[string]bool{}
 	for _, table := range members {
-		memberSet[canonicalName(table.Name)] = true
 		tableSet[canonicalName(table.Name)] = true
 	}
 	for _, fk := range fks {
@@ -180,11 +223,15 @@ func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []F
 	}
 
 	var b strings.Builder
-	b.WriteString("```mermaid\nflowchart LR\n")
+	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart " + domainDirection(group.Key) + "\n")
 	for _, table := range included {
-		columns := mapColumnsFor(table, fks, memberSet[canonicalName(table.Name)])
+		columns := mapColumnsFor(table, fks, false)
 		pk := primaryKey(table)
-		fmt.Fprintf(&b, "  subgraph %s[\"%s · PK %s\"]\n    direction TB\n", mermaidID("sg_"+table.Name), mermaidText(table.Name), mermaidText(pk.Name))
+		header := fmt.Sprintf("%s · PK %s", table.Name, pk.Name)
+		if folded := len(table.Columns) - len(columns); folded > 0 {
+			header += fmt.Sprintf(" · +%d folded", folded)
+		}
+		fmt.Fprintf(&b, "  subgraph %s[\"%s\"]\n    direction TB\n", mermaidID("sg_"+table.Name), mermaidText(header))
 		for _, column := range columns {
 			fmt.Fprintf(&b, "    %s[\"%s\"]\n", mermaidID(table.Name+"__"+column.Name), mermaidText(columnLabel(table, column, fks)))
 		}
@@ -208,6 +255,13 @@ func mapColumnsFor(table Table, fks []ForeignKey, all bool) []Column {
 	wanted := map[string]bool{}
 	for _, column := range primaryKey(table).Columns {
 		wanted[canonicalName(column)] = true
+	}
+	for _, constraint := range table.Constraints {
+		if constraint.Type == "UNIQUE" {
+			for _, column := range constraint.Columns {
+				wanted[canonicalName(column)] = true
+			}
+		}
 	}
 	for _, fk := range fks {
 		if canonicalName(fk.SourceTable) == canonicalName(table.Name) {

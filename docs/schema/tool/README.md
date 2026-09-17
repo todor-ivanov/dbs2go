@@ -22,7 +22,10 @@ go run . \
   -ddl ../../../static/schema/DDL/create-oracle-schema.sql \
   -dialect oracle \
   -out ../README \
-  -emit markdown
+  -svg-out ../generated/dbs-oracle \
+  -emit markdown \
+  -visualizations all \
+  -layout compact
 
 go run . \
   -ddl ../../../static/schema/DDL/create-oracle-schema.sql \
@@ -33,11 +36,25 @@ go run . \
 
 For MySQL, use `create-mysql-schema.sql` and `-dialect mysql`.
 
-The Markdown contains a compact architecture view, a whole-schema overview,
-five collapsible field-level relational maps, a grouped foreign-key registry,
-collapsed table dictionaries, and non-table objects such as sequences, roles,
-and grants. The JSON is the machine-readable source for later API-to-database
-mapping work.
+`-visualizations` accepts any comma-separated combination of:
+
+- `full`: every table and column in one exact Mermaid flowchart;
+- `er`: compact Mermaid ER tables;
+- `keys`: one schema-wide PK/FK/UQ column map;
+- `domains`: five smaller exact column-level maps;
+- `svg`: five deterministic Go-native SVGs with fixed table cards and column
+  ports;
+- `all`: all five modes.
+
+`-layout compact` is the default and applies reduced spacing to all flowchart
+views and SVG assets. `-layout standard` is available for less dense output.
+The SVG implementation is pure Go and does not invoke Graphviz or another
+external renderer.
+
+The Markdown also contains a shared legend, architecture view, grouped
+foreign-key registry, collapsed table dictionaries, and non-table objects such
+as sequences, roles, and grants. The JSON is the machine-readable source for
+later API-to-database mapping work.
 
 ## Verify
 

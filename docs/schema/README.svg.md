@@ -6,14 +6,14 @@
 
 [Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)
 
-Selected visualizations: **full, svg** · layout: **standard**.
+Selected visualizations: **full, svg** · layout: **compact**.
 
 ## How to read this atlas
 
 A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. The edge label is the foreign-key constraint followed by its delete action.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 32, "curve": "linear", "padding": 6}, "themeVariables": {"fontSize": "13px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
 flowchart LR
   subgraph CHILD["CHILD_TABLE · PK PK_CHILD · +2 folded"]
     direction TB
@@ -50,7 +50,7 @@ Database objects: **tables** store rows; **constraints** enforce keys/checks; **
 The schema has five functional areas. The central structural path is dataset → block → file → luminosity section; lookup tables classify those records, parentage tables link provenance, configuration tables describe producing software, and migration tables record transfers.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 32, "curve": "linear", "padding": 6}, "themeVariables": {"fontSize": "13px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
 flowchart LR
   DS["DATASETS<br/>published dataset identity"] -->|DS_BK| BK["BLOCKS<br/>transfer and storage unit"]
   DS -->|DS_FL| FL["FILES<br/>physical data files"]
@@ -71,7 +71,7 @@ Each selected representation is folded independently. Compact spacing is applied
 This is the direct compacted form of the original all-column output. It is complete but necessarily the largest Mermaid view.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 32, "curve": "linear", "padding": 6}, "themeVariables": {"fontSize": "13px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
 flowchart TB
   subgraph n_sg_ACQUISITION_ERAS["ACQUISITION_ERAS · PK PK_AQE"]
     direction TB

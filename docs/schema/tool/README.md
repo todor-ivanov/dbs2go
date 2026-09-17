@@ -39,7 +39,7 @@ go run . \
 subset writes only those option files. Each document includes the shared
 legend, architecture, whole-schema relation overview, foreign-key registry,
 table dictionary, and auxiliary objects. The fixed Whole-schema relations
-subsection and the five functional-area subsections under `## Visualizations`
+subsection and the five functional-area subsections under `## Relational maps`
 are the only visualization content: the selected mode is embedded once in each
 subsection.
 

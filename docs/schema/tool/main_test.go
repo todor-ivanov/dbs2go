@@ -157,7 +157,7 @@ func TestMarkdownAtlasIsCompactAndColumnPrecise(t *testing.T) {
 			}
 		}
 	}
-	for _, heading := range []string{"## How to read this atlas", "## Architecture", "## Visualizations", "## Foreign-key registry", "## Table dictionary", "## Other database objects"} {
+	for _, heading := range []string{"## How to read this atlas", "## Architecture", "## Relational maps", "## Foreign-key registry", "## Table dictionary", "## Other database objects"} {
 		if !strings.Contains(doc, heading) {
 			t.Fatalf("missing section %q", heading)
 		}
@@ -232,7 +232,7 @@ func TestAllVisualizationModesAndNativeSVG(t *testing.T) {
 		if name == "svg" && strings.Count(single, "relational SVG") != 6 {
 			t.Fatalf("svg document has %d SVG embeds, want 6", strings.Count(single, "relational SVG"))
 		}
-		start := strings.Index(single, "## Visualizations")
+		start := strings.Index(single, "## Relational maps")
 		end := strings.Index(single, "## Foreign-key registry")
 		if start < 0 || end < start {
 			t.Fatalf("%s document has malformed visualization section", name)

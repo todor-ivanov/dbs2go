@@ -33,7 +33,7 @@ func domainDirection(group string) string {
 func renderLegend(layout string) string {
 	var b strings.Builder
 	b.WriteString("## How to read this atlas\n\n")
-	b.WriteString("A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. The edge label is the foreign-key constraint followed by its delete action.\n\n")
+	b.WriteString("A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. Arrow labels are foreign-key constraint names, not key names. To resolve a label such as `DS_BK`, search the `Foreign-key registry` section for its source and referenced columns, delete rule, referenced key, and source index; the same constraint is repeated in the affected table's `Table dictionary` entry under `Keys and constraints` and `Relationships`. Detailed Mermaid maps format labels as `CONSTRAINT · ACTION`, ER maps as `CONSTRAINT / ACTION`, and SVG maps show the same two values on separate lines. In the whole-schema overview, `N FKs` aggregates N distinct foreign keys between the same two tables.\n\n")
 	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart LR\n")
 	b.WriteString("  subgraph CHILD[\"CHILD_TABLE · PK PK_CHILD · +2 folded\"]\n    direction TB\n    CID[\"ID<br/>INTEGER · PK · NN\"]\n    PID[\"PARENT_ID<br/>INTEGER · FK · NN\"]\n  end\n")
 	b.WriteString("  subgraph PARENT[\"PARENT_TABLE · PK PK_PARENT\"]\n    direction TB\n    TID[\"ID<br/>INTEGER · PK · NN\"]\n  end\n")
@@ -41,7 +41,7 @@ func renderLegend(layout string) string {
 	b.WriteString("  style CHILD fill:#E6F5ED,stroke:#17734D,color:#1f2937\n  style PARENT fill:#E9F2FC,stroke:#245FA9,color:#1f2937\n```\n\n")
 	b.WriteString("| Marker | Meaning |\n|---|---|\n")
 	b.WriteString("| `PK` | Primary-key column |\n| `FK` | Foreign-key source column |\n| `UK` | Column participating in a unique constraint (`UQ` in DDL) |\n| `NN` | `NOT NULL` |\n| `IDX` | Explicit index (distinct from the referenced PK/UK) |\n| `IOT` | Oracle index-organized table |\n| `DDL` | Data Definition Language source script |\n")
-	b.WriteString("\nDelete actions: `CASCADE` removes dependent rows; `SET NULL` clears the FK; `NO ACTION` means the DDL has no `ON DELETE` clause.\n\n")
+	b.WriteString("\nDelete actions: `CASCADE` deletes dependent (child) rows when the referenced (parent) row is deleted; `SET NULL` clears the child FK value; `NO ACTION` means the DDL has no `ON DELETE` clause, so no child rows are automatically changed and a parent deletion can be rejected while dependents exist.\n\n")
 	b.WriteString("Functional colors: 🟩 core data · 🟦 classification/lookup · 🟪 parentage · 🟧 processing configuration · 🔷 migration/instance metadata · ⬜ other operational tables.\n\n")
 	b.WriteString("Database objects: **tables** store rows; **constraints** enforce keys/checks; **indexes** provide access paths; **sequences** generate numeric identifiers; **roles** group privileges; **grants** assign privileges.\n\n")
 	return b.String()

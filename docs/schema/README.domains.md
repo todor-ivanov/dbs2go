@@ -4,11 +4,11 @@
 
 **28 tables · 146 columns · 28 primary keys · 21 unique constraints · 3 checks · 31 foreign keys · 43 explicit indexes**
 
-[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)
+[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Relational maps](#relational-maps) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)
 
 ## How to read this atlas
 
-A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. The edge label is the foreign-key constraint followed by its delete action.
+A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. Arrow labels are foreign-key constraint names, not key names. To resolve a label such as `DS_BK`, search the `Foreign-key registry` section for its source and referenced columns, delete rule, referenced key, and source index; the same constraint is repeated in the affected table's `Table dictionary` entry under `Keys and constraints` and `Relationships`. Detailed Mermaid maps format labels as `CONSTRAINT · ACTION`, ER maps as `CONSTRAINT / ACTION`, and SVG maps show the same two values on separate lines. In the whole-schema overview, `N FKs` aggregates N distinct foreign keys between the same two tables.
 
 ```mermaid
 %%{init: {"flowchart": {"nodeSpacing": 4, "rankSpacing": 8, "curve": "linear", "padding": 2}, "themeVariables": {"fontSize": "11px"}}}%%
@@ -37,7 +37,7 @@ flowchart LR
 | `IOT` | Oracle index-organized table |
 | `DDL` | Data Definition Language source script |
 
-Delete actions: `CASCADE` removes dependent rows; `SET NULL` clears the FK; `NO ACTION` means the DDL has no `ON DELETE` clause.
+Delete actions: `CASCADE` deletes dependent (child) rows when the referenced (parent) row is deleted; `SET NULL` clears the child FK value; `NO ACTION` means the DDL has no `ON DELETE` clause, so no child rows are automatically changed and a parent deletion can be rejected while dependents exist.
 
 Functional colors: 🟩 core data · 🟦 classification/lookup · 🟪 parentage · 🟧 processing configuration · 🔷 migration/instance metadata · ⬜ other operational tables.
 
@@ -187,7 +187,7 @@ flowchart TB
   style n_table_MIGRATION_BLOCKS fill:#E8F4F5,stroke:#147887,color:#1f2937
   style n_table_MIGRATION_REQUESTS fill:#E8F4F5,stroke:#147887,color:#1f2937
 ```
-## Visualizations
+## Relational maps
 
 The whole-schema graph and five functional areas below use the selected visualization mode. All surrounding documentation is mode-independent.
 

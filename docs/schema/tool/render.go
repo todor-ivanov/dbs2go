@@ -52,7 +52,7 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	b.WriteString("# DBS relational data atlas\n\n")
 	fmt.Fprintf(&b, "> Generated from [`%s`](../../static/schema/DDL/%s) (%s, SHA-256 `%s`) with %s %s. This is the persisted database structure defined by the DDL, not a live database inventory.\n\n", schema.Source.File, schema.Source.File, schema.Source.Dialect, schema.Source.SHA256, schema.Parser.Name, schema.Parser.Version)
 	fmt.Fprintf(&b, "**%d tables · %d columns · %d primary keys · %d unique constraints · %d checks · %d foreign keys · %d explicit indexes**\n\n", len(schema.Tables), columnCount(schema), stats.PrimaryKeys, stats.Unique, stats.Checks, len(schema.ForeignKeys), stats.Indexes)
-	b.WriteString("[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)\n\n")
+	b.WriteString("[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Relational maps](#relational-maps) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)\n\n")
 	b.WriteString(renderLegend(options.Layout))
 
 	b.WriteString("## Architecture\n\n")
@@ -65,7 +65,7 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	b.WriteString(renderOverview(schema, options.Layout))
 	b.WriteString("\n")
 
-	b.WriteString("## Visualizations\n\n")
+	b.WriteString("## Relational maps\n\n")
 	b.WriteString("The whole-schema graph and five functional areas below use the selected visualization mode. All surrounding documentation is mode-independent.\n\n")
 	fmt.Fprintf(&b, "<details>\n<summary><strong>Whole-schema relations</strong></summary>\n\nThe whole-schema relationship graph rendered with the selected visualization mode.\n\n%s\n</details>\n\n", renderVisualizationWholeSchema(schema, options))
 	for _, group := range schemaGroups {

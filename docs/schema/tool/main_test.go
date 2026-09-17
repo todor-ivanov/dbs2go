@@ -142,8 +142,8 @@ func TestMarkdownAtlasIsCompactAndColumnPrecise(t *testing.T) {
 		t.Fatal(err)
 	}
 	doc := renderMarkdown(schema)
-	if got := strings.Count(doc, "```mermaid"); got != 7 {
-		t.Fatalf("Mermaid diagram count = %d, want 7", got)
+	if got := strings.Count(doc, "```mermaid"); got != 9 {
+		t.Fatalf("Mermaid diagram count = %d, want 9", got)
 	}
 	if strings.Count(doc, "<details") != strings.Count(doc, "</details>") {
 		t.Fatal("unbalanced details sections")
@@ -178,22 +178,22 @@ func TestAllVisualizationModesAndNativeSVG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(views) != 5 {
-		t.Fatalf("all selected %d modes, want 5", len(views))
+	if len(views) != 3 {
+		t.Fatalf("all selected %d modes, want 3", len(views))
 	}
 	svgs, err := renderNativeSVGs(schema, "compact")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(svgs) != 5 {
-		t.Fatalf("native SVG count = %d, want 5", len(svgs))
+	if len(svgs) != 6 {
+		t.Fatalf("native SVG count = %d, want 6", len(svgs))
 	}
 	secondSVGs, err := renderNativeSVGs(schema, "compact")
 	if err != nil {
 		t.Fatal(err)
 	}
 	refs := map[string]string{}
-	maxWidths := map[string]float64{"core": 1400, "class": 1000, "parent": 700, "config": 1000, "ops": 700}
+	maxWidths := map[string]float64{"whole": 3000, "core": 1400, "class": 1000, "parent": 700, "config": 1000, "ops": 700}
 	for key, data := range svgs {
 		if !bytes.Equal(data, secondSVGs[key]) {
 			t.Fatalf("%s SVG is nondeterministic", key)
@@ -218,25 +218,50 @@ func TestAllVisualizationModesAndNativeSVG(t *testing.T) {
 			}
 		}
 	}
-	doc := renderMarkdownWithOptions(schema, RenderOptions{Visualizations: views, Layout: "compact", SVGReferences: refs})
-	for _, marker := range []string{"Full flowchart", "ER view", "Schema-wide key map", "Domain map:", "Go-native SVG:"} {
-		if !strings.Contains(doc, marker) {
-			t.Fatalf("all-mode document is missing %q", marker)
+	var common string
+	for _, name := range []string{"er", "domains", "svg"} {
+		single := renderMarkdownWithOptions(schema, RenderOptions{Visualizations: map[string]bool{name: true}, Layout: "compact", SVGReferences: refs})
+		for _, heading := range []string{"## How to read this atlas", "## Architecture", "## Whole-schema relations", "## Foreign-key registry", "## Table dictionary", "## Other database objects"} {
+			if !strings.Contains(single, heading) {
+				t.Fatalf("%s document is missing shared section %q", name, heading)
+			}
 		}
-	}
-	if got := strings.Count(doc, "```mermaid"); got != 10 {
-		t.Fatalf("all-mode Mermaid diagram count = %d, want 10", got)
-	}
-	if !strings.Contains(doc, `"nodeSpacing": 8`) {
-		t.Fatal("compact spacing directive is missing")
+		if !strings.Contains(single, `"nodeSpacing": 4`) && name != "svg" {
+			t.Fatalf("%s document is missing compact Mermaid spacing", name)
+		}
+		if name == "svg" && strings.Count(single, "relational SVG") != 6 {
+			t.Fatalf("svg document has %d SVG embeds, want 6", strings.Count(single, "relational SVG"))
+		}
+		start := strings.Index(single, "## Visualizations")
+		end := strings.Index(single, "## Foreign-key registry")
+		if start < 0 || end < start {
+			t.Fatalf("%s document has malformed visualization section", name)
+		}
+		visualization := single[start:end]
+		for _, title := range []string{"Whole-schema relations", "Core data and containment", "Classification and lookup", "Parentage and associations", "Processing configuration", "Migration and instance metadata"} {
+			if got := strings.Count(visualization, "<summary><strong>"+title+"</strong>"); got != 1 {
+				t.Fatalf("%s visualization has %d %q subsections, want 1", name, got, title)
+			}
+		}
+		withoutVisualization := single[:start] + single[end:]
+		if common == "" {
+			common = withoutVisualization
+		} else if common != withoutVisualization {
+			t.Fatalf("%s document differs outside its visualization section", name)
+		}
 	}
 }
 
 func TestVisualizationSelection(t *testing.T) {
-	for _, name := range []string{"full", "er", "keys", "domains", "svg"} {
+	for _, name := range []string{"er", "domains", "svg"} {
 		views, err := parseVisualizations(name)
 		if err != nil || len(views) != 1 || !views[name] {
 			t.Fatalf("selection %q failed: views=%v err=%v", name, views, err)
+		}
+	}
+	for _, removed := range []string{"full", "keys"} {
+		if _, err := parseVisualizations(removed); err == nil {
+			t.Fatalf("removed visualization %q was accepted", removed)
 		}
 	}
 	if _, err := parseVisualizations("unknown"); err == nil {

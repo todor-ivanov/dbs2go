@@ -15,7 +15,7 @@ func main() {
 	flag.StringVar(&emit, "emit", "json,markdown", "comma-separated outputs: json,markdown")
 	flag.StringVar(&outBase, "out", "", "output basename")
 	flag.StringVar(&svgOutBase, "svg-out", "", "SVG asset basename (default: -out value)")
-	flag.StringVar(&visualizations, "visualizations", "domains", "comma-separated views: full,er,keys,domains,svg,all")
+	flag.StringVar(&visualizations, "visualizations", "domains", "comma-separated views: er,domains,svg,all")
 	flag.StringVar(&layout, "layout", "compact", "diagram spacing: compact or standard")
 	flag.Parse()
 
@@ -45,6 +45,7 @@ func main() {
 	if outBase == "" {
 		outBase = ddlPath + ".schema"
 	}
+	outBase = strings.TrimSuffix(outBase, ".md")
 	if svgOutBase == "" {
 		svgOutBase = outBase
 	}
@@ -70,7 +71,10 @@ func main() {
 		case "json":
 			outputs[outBase+".json"], err = renderJSON(schema)
 		case "markdown":
-			outputs[outBase+".md"] = []byte(renderMarkdownWithOptions(schema, RenderOptions{Visualizations: views, Layout: layout, SVGReferences: svgReferences}))
+			markdownBase := strings.TrimSuffix(outBase, ".md")
+			for _, view := range selectedVisualizations(views) {
+				outputs[markdownBase+"."+view+".md"] = []byte(renderMarkdownWithOptions(schema, RenderOptions{Visualizations: map[string]bool{view: true}, Layout: layout, SVGReferences: svgReferences}))
+			}
 		}
 		if err != nil {
 			fatalf("render %s: %v", format, err)
@@ -83,7 +87,7 @@ func main() {
 }
 
 func parseVisualizations(value string) (map[string]bool, error) {
-	allowed := map[string]bool{"full": true, "er": true, "keys": true, "domains": true, "svg": true}
+	allowed := map[string]bool{"er": true, "domains": true, "svg": true}
 	out := map[string]bool{}
 	for _, item := range strings.Split(value, ",") {
 		item = strings.ToLower(strings.TrimSpace(item))
@@ -97,7 +101,7 @@ func parseVisualizations(value string) (map[string]bool, error) {
 			continue
 		}
 		if !allowed[item] {
-			return nil, fmt.Errorf("unknown visualization %q (supported: full, er, keys, domains, svg, all)", item)
+			return nil, fmt.Errorf("unknown visualization %q (supported: er, domains, svg, all)", item)
 		}
 		out[item] = true
 	}

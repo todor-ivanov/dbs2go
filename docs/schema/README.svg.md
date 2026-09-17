@@ -6,14 +6,12 @@
 
 [Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)
 
-Selected visualizations: **full, svg** · layout: **compact**.
-
 ## How to read this atlas
 
 A visual table is a labelled container; each inner box is a column. An arrow starts at the referencing (child) column and ends at the referenced key column. The edge label is the foreign-key constraint followed by its delete action.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 4, "rankSpacing": 8, "curve": "linear", "padding": 2}, "themeVariables": {"fontSize": "11px"}}}%%
 flowchart LR
   subgraph CHILD["CHILD_TABLE · PK PK_CHILD · +2 folded"]
     direction TB
@@ -33,9 +31,9 @@ flowchart LR
 |---|---|
 | `PK` | Primary-key column |
 | `FK` | Foreign-key source column |
-| `UQ` | Column participating in a unique constraint |
+| `UK` | Column participating in a unique constraint (`UQ` in DDL) |
 | `NN` | `NOT NULL` |
-| `IDX` | Explicit index (distinct from the referenced PK/UQ) |
+| `IDX` | Explicit index (distinct from the referenced PK/UK) |
 | `IOT` | Oracle index-organized table |
 | `DDL` | Data Definition Language source script |
 
@@ -50,7 +48,7 @@ Database objects: **tables** store rows; **constraints** enforce keys/checks; **
 The schema has five functional areas. The central structural path is dataset → block → file → luminosity section; lookup tables classify those records, parentage tables link provenance, configuration tables describe producing software, and migration tables record transfers.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 4, "rankSpacing": 8, "curve": "linear", "padding": 2}, "themeVariables": {"fontSize": "11px"}}}%%
 flowchart LR
   DS["DATASETS<br/>published dataset identity"] -->|DS_BK| BK["BLOCKS<br/>transfer and storage unit"]
   DS -->|DS_FL| FL["FILES<br/>physical data files"]
@@ -61,353 +59,196 @@ flowchart LR
   class DS,BK,FL,LM,DR core;
 ```
 
-## Visualizations
+## Whole-schema relations
 
-Each selected representation is folded independently. Compact spacing is applied to every Mermaid flowchart; full column data remains available in the table dictionary.
-
-<details>
-<summary><strong>Full flowchart</strong> — every table and every column, with exact FK endpoints</summary>
-
-This is the direct compacted form of the original all-column output. It is complete but necessarily the largest Mermaid view.
+This compact overview shows every table and relationship at table level. Exact column endpoints, constraint names, delete actions, and keys are preserved in the selected maps, registry, and dictionary below.
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 8, "rankSpacing": 14, "curve": "linear", "padding": 3}, "themeVariables": {"fontSize": "12px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 4, "rankSpacing": 8, "curve": "linear", "padding": 2}, "themeVariables": {"fontSize": "11px"}}}%%
 flowchart TB
-  subgraph n_sg_ACQUISITION_ERAS["ACQUISITION_ERAS · PK PK_AQE"]
-    direction TB
-    n_ACQUISITION_ERAS__ACQUISITION_ERA_ID["ACQUISITION_ERA_ID<br/>INTEGER · PK · NN"]
-    n_ACQUISITION_ERAS__ACQUISITION_ERA_NAME["ACQUISITION_ERA_NAME<br/>VARCHAR2(120) · UQ · NN"]
-    n_ACQUISITION_ERAS__START_DATE["START_DATE<br/>INTEGER · NN"]
-    n_ACQUISITION_ERAS__END_DATE["END_DATE<br/>INTEGER"]
-    n_ACQUISITION_ERAS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_ACQUISITION_ERAS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_ACQUISITION_ERAS__DESCRIPTION["DESCRIPTION<br/>VARCHAR2(40)"]
+  subgraph n_group_core["Core data and containment"]
+    n_table_BLOCKS["BLOCKS<br/>11 columns · PK PK_BK"]
+    n_table_DATASETS["DATASETS<br/>16 columns · PK PK_DS"]
+    n_table_DATASET_RUNS["DATASET_RUNS<br/>7 columns · PK PK_DR"]
+    n_table_FILES["FILES<br/>17 columns · PK PK_FL"]
+    n_table_FILE_LUMIS["FILE_LUMIS<br/>4 columns · PK PK_FLM"]
   end
-  style n_sg_ACQUISITION_ERAS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_APPLICATION_EXECUTABLES["APPLICATION_EXECUTABLES · PK PK_AE"]
-    direction TB
-    n_APPLICATION_EXECUTABLES__APP_EXEC_ID["APP_EXEC_ID<br/>INTEGER · PK · NN"]
-    n_APPLICATION_EXECUTABLES__APP_NAME["APP_NAME<br/>VARCHAR2(100) · UQ · NN"]
+  subgraph n_group_class["Classification and lookup"]
+    n_table_ACQUISITION_ERAS["ACQUISITION_ERAS<br/>7 columns · PK PK_AQE"]
+    n_table_BRANCH_HASHES["BRANCH_HASHES<br/>3 columns · PK PK_BH"]
+    n_table_DATASET_ACCESS_TYPES["DATASET_ACCESS_TYPES<br/>2 columns · PK PK_DTP"]
+    n_table_DATA_TIERS["DATA_TIERS<br/>4 columns · PK PK_DT"]
+    n_table_FILE_DATA_TYPES["FILE_DATA_TYPES<br/>2 columns · PK PK_FT"]
+    n_table_PHYSICS_GROUPS["PHYSICS_GROUPS<br/>2 columns · PK PK_PG"]
+    n_table_PRIMARY_DATASETS["PRIMARY_DATASETS<br/>5 columns · PK PK_PDS"]
+    n_table_PRIMARY_DS_TYPES["PRIMARY_DS_TYPES<br/>2 columns · PK PK_PDT"]
+    n_table_PROCESSED_DATASETS["PROCESSED_DATASETS<br/>2 columns · PK PK_PSDS"]
+    n_table_PROCESSING_ERAS["PROCESSING_ERAS<br/>5 columns · PK PK_PE"]
   end
-  style n_sg_APPLICATION_EXECUTABLES fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  subgraph n_sg_ASSOCIATED_FILES["ASSOCIATED_FILES · PK PK_AF"]
-    direction TB
-    n_ASSOCIATED_FILES__ASSOCATED_FILE_ID["ASSOCATED_FILE_ID<br/>INTEGER · PK · NN"]
-    n_ASSOCIATED_FILES__THIS_FILE_ID["THIS_FILE_ID<br/>INTEGER · FK · UQ · NN"]
-    n_ASSOCIATED_FILES__ASSOCATED_FILE["ASSOCATED_FILE<br/>INTEGER · FK · UQ · NN"]
+  subgraph n_group_parent["Parentage and associations"]
+    n_table_ASSOCIATED_FILES["ASSOCIATED_FILES<br/>3 columns · PK PK_AF"]
+    n_table_BLOCK_PARENTS["BLOCK_PARENTS<br/>2 columns · PK PK_BP"]
+    n_table_DATASET_PARENTS["DATASET_PARENTS<br/>2 columns · PK PK_DP"]
+    n_table_FILE_PARENTS["FILE_PARENTS<br/>2 columns · PK PK_FP"]
   end
-  style n_sg_ASSOCIATED_FILES fill:#F3EAFF,stroke:#7047AA,color:#1f2937
-  subgraph n_sg_BLOCKS["BLOCKS · PK PK_BK"]
-    direction TB
-    n_BLOCKS__BLOCK_ID["BLOCK_ID<br/>INTEGER · PK · NN"]
-    n_BLOCKS__BLOCK_NAME["BLOCK_NAME<br/>VARCHAR2(500) · UQ · NN"]
-    n_BLOCKS__DATASET_ID["DATASET_ID<br/>INTEGER · FK · NN"]
-    n_BLOCKS__OPEN_FOR_WRITING["OPEN_FOR_WRITING<br/>INTEGER · NN"]
-    n_BLOCKS__ORIGIN_SITE_NAME["ORIGIN_SITE_NAME<br/>VARCHAR2(200) · NN"]
-    n_BLOCKS__BLOCK_SIZE["BLOCK_SIZE<br/>INTEGER"]
-    n_BLOCKS__FILE_COUNT["FILE_COUNT<br/>INTEGER"]
-    n_BLOCKS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_BLOCKS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_BLOCKS__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-    n_BLOCKS__LAST_MODIFIED_BY["LAST_MODIFIED_BY<br/>VARCHAR2(500)"]
+  subgraph n_group_config["Processing configuration"]
+    n_table_APPLICATION_EXECUTABLES["APPLICATION_EXECUTABLES<br/>2 columns · PK PK_AE"]
+    n_table_DATASET_OUTPUT_MOD_CONFIGS["DATASET_OUTPUT_MOD_CONFIGS<br/>3 columns · PK PK_DC"]
+    n_table_FILE_OUTPUT_MOD_CONFIGS["FILE_OUTPUT_MOD_CONFIGS<br/>3 columns · PK PK_FC"]
+    n_table_OUTPUT_MODULE_CONFIGS["OUTPUT_MODULE_CONFIGS<br/>9 columns · PK PK_OMC"]
+    n_table_PARAMETER_SET_HASHES["PARAMETER_SET_HASHES<br/>3 columns · PK PK_PSH"]
+    n_table_RELEASE_VERSIONS["RELEASE_VERSIONS<br/>2 columns · PK PK_RV"]
   end
-  style n_sg_BLOCKS fill:#E6F5ED,stroke:#17734D,color:#1f2937
-  subgraph n_sg_BLOCK_PARENTS["BLOCK_PARENTS · PK PK_BP"]
-    direction TB
-    n_BLOCK_PARENTS__THIS_BLOCK_ID["THIS_BLOCK_ID<br/>INTEGER · PK · FK · NN"]
-    n_BLOCK_PARENTS__PARENT_BLOCK_ID["PARENT_BLOCK_ID<br/>INTEGER · PK · FK · NN"]
+  subgraph n_group_ops["Migration and instance metadata"]
+    n_table_DBS_VERSIONS["DBS_VERSIONS<br/>7 columns · PK PK_DV"]
+    n_table_MIGRATION_BLOCKS["MIGRATION_BLOCKS<br/>9 columns · PK PK_MB"]
+    n_table_MIGRATION_REQUESTS["MIGRATION_REQUESTS<br/>10 columns · PK PK_MR"]
   end
-  style n_sg_BLOCK_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
-  subgraph n_sg_BRANCH_HASHES["BRANCH_HASHES · PK PK_BH"]
-    direction TB
-    n_BRANCH_HASHES__BRANCH_HASH_ID["BRANCH_HASH_ID<br/>INTEGER · PK · NN"]
-    n_BRANCH_HASHES__BRANCH_HASH["BRANCH_HASH<br/>VARCHAR2(700) · NN"]
-    n_BRANCH_HASHES__CONTENT["CONTENT<br/>CLOB"]
-  end
-  style n_sg_BRANCH_HASHES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_DATASETS["DATASETS · PK PK_DS"]
-    direction TB
-    n_DATASETS__DATASET_ID["DATASET_ID<br/>INTEGER · PK · NN"]
-    n_DATASETS__DATASET["DATASET<br/>VARCHAR2(700) · UQ · NN"]
-    n_DATASETS__IS_DATASET_VALID["IS_DATASET_VALID<br/>INTEGER · NN"]
-    n_DATASETS__PRIMARY_DS_ID["PRIMARY_DS_ID<br/>INTEGER · FK · NN"]
-    n_DATASETS__PROCESSED_DS_ID["PROCESSED_DS_ID<br/>INTEGER · FK · NN"]
-    n_DATASETS__DATA_TIER_ID["DATA_TIER_ID<br/>INTEGER · FK · NN"]
-    n_DATASETS__DATASET_ACCESS_TYPE_ID["DATASET_ACCESS_TYPE_ID<br/>INTEGER · FK · NN"]
-    n_DATASETS__ACQUISITION_ERA_ID["ACQUISITION_ERA_ID<br/>INTEGER · FK"]
-    n_DATASETS__PROCESSING_ERA_ID["PROCESSING_ERA_ID<br/>INTEGER · FK"]
-    n_DATASETS__PHYSICS_GROUP_ID["PHYSICS_GROUP_ID<br/>INTEGER · FK"]
-    n_DATASETS__XTCROSSSECTION["XTCROSSSECTION<br/>FLOAT(126)"]
-    n_DATASETS__PREP_ID["PREP_ID<br/>VARCHAR2(256)"]
-    n_DATASETS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_DATASETS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_DATASETS__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-    n_DATASETS__LAST_MODIFIED_BY["LAST_MODIFIED_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_DATASETS fill:#E6F5ED,stroke:#17734D,color:#1f2937
-  subgraph n_sg_DATASET_ACCESS_TYPES["DATASET_ACCESS_TYPES · PK PK_DTP"]
-    direction TB
-    n_DATASET_ACCESS_TYPES__DATASET_ACCESS_TYPE_ID["DATASET_ACCESS_TYPE_ID<br/>INTEGER · PK · NN"]
-    n_DATASET_ACCESS_TYPES__DATASET_ACCESS_TYPE["DATASET_ACCESS_TYPE<br/>VARCHAR2(100) · UQ · NN"]
-  end
-  style n_sg_DATASET_ACCESS_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_DATASET_OUTPUT_MOD_CONFIGS["DATASET_OUTPUT_MOD_CONFIGS · PK PK_DC"]
-    direction TB
-    n_DATASET_OUTPUT_MOD_CONFIGS__DS_OUTPUT_MOD_CONF_ID["DS_OUTPUT_MOD_CONF_ID<br/>INTEGER · PK · NN"]
-    n_DATASET_OUTPUT_MOD_CONFIGS__DATASET_ID["DATASET_ID<br/>INTEGER · FK · UQ · NN"]
-    n_DATASET_OUTPUT_MOD_CONFIGS__OUTPUT_MOD_CONFIG_ID["OUTPUT_MOD_CONFIG_ID<br/>INTEGER · FK · UQ · NN"]
-  end
-  style n_sg_DATASET_OUTPUT_MOD_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  subgraph n_sg_DATASET_PARENTS["DATASET_PARENTS · PK PK_DP"]
-    direction TB
-    n_DATASET_PARENTS__THIS_DATASET_ID["THIS_DATASET_ID<br/>INTEGER · PK · FK · NN"]
-    n_DATASET_PARENTS__PARENT_DATASET_ID["PARENT_DATASET_ID<br/>INTEGER · PK · FK · NN"]
-  end
-  style n_sg_DATASET_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
-  subgraph n_sg_DATASET_RUNS["DATASET_RUNS · PK PK_DR"]
-    direction TB
-    n_DATASET_RUNS__DATASET_RUN_ID["DATASET_RUN_ID<br/>INTEGER · PK · NN"]
-    n_DATASET_RUNS__DATASET_ID["DATASET_ID<br/>INTEGER · FK · NN"]
-    n_DATASET_RUNS__RUN_NUMBER["RUN_NUMBER<br/>INTEGER"]
-    n_DATASET_RUNS__COMPLETE["COMPLETE<br/>INTEGER"]
-    n_DATASET_RUNS__LUMI_SECTION_COUNT["LUMI_SECTION_COUNT<br/>INTEGER"]
-    n_DATASET_RUNS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_DATASET_RUNS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_DATASET_RUNS fill:#E6F5ED,stroke:#17734D,color:#1f2937
-  subgraph n_sg_DATA_TIERS["DATA_TIERS · PK PK_DT"]
-    direction TB
-    n_DATA_TIERS__DATA_TIER_ID["DATA_TIER_ID<br/>INTEGER · PK · NN"]
-    n_DATA_TIERS__DATA_TIER_NAME["DATA_TIER_NAME<br/>VARCHAR2(100) · UQ · NN"]
-    n_DATA_TIERS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_DATA_TIERS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_DATA_TIERS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_DBS_VERSIONS["DBS_VERSIONS · PK PK_DV"]
-    direction TB
-    n_DBS_VERSIONS__DBS_VERSION_ID["DBS_VERSION_ID<br/>INTEGER · PK · NN"]
-    n_DBS_VERSIONS__SCHEMA_VERSION["SCHEMA_VERSION<br/>VARCHAR2(40) · NN"]
-    n_DBS_VERSIONS__DBS_RELEASE_VERSION["DBS_RELEASE_VERSION<br/>VARCHAR2(40) · NN"]
-    n_DBS_VERSIONS__INSTANCE_NAME["INSTANCE_NAME<br/>VARCHAR2(40) · NN"]
-    n_DBS_VERSIONS__INSTANCE_TYPE["INSTANCE_TYPE<br/>VARCHAR2(40) · NN"]
-    n_DBS_VERSIONS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_DBS_VERSIONS__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-  end
-  style n_sg_DBS_VERSIONS fill:#E8F4F5,stroke:#147887,color:#1f2937
-  subgraph n_sg_FILES["FILES · PK PK_FL"]
-    direction TB
-    n_FILES__FILE_ID["FILE_ID<br/>INTEGER · PK · NN"]
-    n_FILES__LOGICAL_FILE_NAME["LOGICAL_FILE_NAME<br/>VARCHAR2(500) · UQ · NN"]
-    n_FILES__IS_FILE_VALID["IS_FILE_VALID<br/>INTEGER · NN"]
-    n_FILES__DATASET_ID["DATASET_ID<br/>INTEGER · FK · NN"]
-    n_FILES__BLOCK_ID["BLOCK_ID<br/>INTEGER · FK · NN"]
-    n_FILES__FILE_TYPE_ID["FILE_TYPE_ID<br/>INTEGER · FK · NN"]
-    n_FILES__CHECK_SUM["CHECK_SUM<br/>VARCHAR2(100)"]
-    n_FILES__EVENT_COUNT["EVENT_COUNT<br/>INTEGER · NN"]
-    n_FILES__FILE_SIZE["FILE_SIZE<br/>INTEGER · NN"]
-    n_FILES__BRANCH_HASH_ID["BRANCH_HASH_ID<br/>INTEGER · FK"]
-    n_FILES__ADLER32["ADLER32<br/>VARCHAR2(100)"]
-    n_FILES__MD5["MD5<br/>VARCHAR2(100)"]
-    n_FILES__AUTO_CROSS_SECTION["AUTO_CROSS_SECTION<br/>FLOAT(126)"]
-    n_FILES__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_FILES__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_FILES__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-    n_FILES__LAST_MODIFIED_BY["LAST_MODIFIED_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_FILES fill:#E6F5ED,stroke:#17734D,color:#1f2937
-  subgraph n_sg_FILE_DATA_TYPES["FILE_DATA_TYPES · PK PK_FT"]
-    direction TB
-    n_FILE_DATA_TYPES__FILE_TYPE_ID["FILE_TYPE_ID<br/>INTEGER · PK · NN"]
-    n_FILE_DATA_TYPES__FILE_TYPE["FILE_TYPE<br/>VARCHAR2(100) · UQ · NN"]
-  end
-  style n_sg_FILE_DATA_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_FILE_LUMIS["FILE_LUMIS · PK PK_FLM"]
-    direction TB
-    n_FILE_LUMIS__RUN_NUM["RUN_NUM<br/>INTEGER · PK · NN"]
-    n_FILE_LUMIS__LUMI_SECTION_NUM["LUMI_SECTION_NUM<br/>INTEGER · PK · NN"]
-    n_FILE_LUMIS__FILE_ID["FILE_ID<br/>INTEGER · PK · FK · NN"]
-    n_FILE_LUMIS__EVENT_COUNT["EVENT_COUNT<br/>INTEGER"]
-  end
-  style n_sg_FILE_LUMIS fill:#E6F5ED,stroke:#17734D,color:#1f2937
-  subgraph n_sg_FILE_OUTPUT_MOD_CONFIGS["FILE_OUTPUT_MOD_CONFIGS · PK PK_FC"]
-    direction TB
-    n_FILE_OUTPUT_MOD_CONFIGS__FILE_OUTPUT_CONFIG_ID["FILE_OUTPUT_CONFIG_ID<br/>INTEGER · PK · NN"]
-    n_FILE_OUTPUT_MOD_CONFIGS__FILE_ID["FILE_ID<br/>INTEGER · FK · UQ · NN"]
-    n_FILE_OUTPUT_MOD_CONFIGS__OUTPUT_MOD_CONFIG_ID["OUTPUT_MOD_CONFIG_ID<br/>INTEGER · FK · UQ · NN"]
-  end
-  style n_sg_FILE_OUTPUT_MOD_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  subgraph n_sg_FILE_PARENTS["FILE_PARENTS · PK PK_FP"]
-    direction TB
-    n_FILE_PARENTS__THIS_FILE_ID["THIS_FILE_ID<br/>INTEGER · PK · FK · NN"]
-    n_FILE_PARENTS__PARENT_FILE_ID["PARENT_FILE_ID<br/>INTEGER · PK · FK · NN"]
-  end
-  style n_sg_FILE_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
-  subgraph n_sg_MIGRATION_BLOCKS["MIGRATION_BLOCKS · PK PK_MB"]
-    direction TB
-    n_MIGRATION_BLOCKS__MIGRATION_BLOCK_ID["MIGRATION_BLOCK_ID<br/>INTEGER · PK · NN"]
-    n_MIGRATION_BLOCKS__MIGRATION_REQUEST_ID["MIGRATION_REQUEST_ID<br/>INTEGER · FK · UQ · NN"]
-    n_MIGRATION_BLOCKS__MIGRATION_BLOCK_NAME["MIGRATION_BLOCK_NAME<br/>VARCHAR2(700) · UQ"]
-    n_MIGRATION_BLOCKS__MIGRATION_ORDER["MIGRATION_ORDER<br/>INTEGER"]
-    n_MIGRATION_BLOCKS__MIGRATION_STATUS["MIGRATION_STATUS<br/>INTEGER"]
-    n_MIGRATION_BLOCKS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_MIGRATION_BLOCKS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_MIGRATION_BLOCKS__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-    n_MIGRATION_BLOCKS__LAST_MODIFIED_BY["LAST_MODIFIED_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_MIGRATION_BLOCKS fill:#E8F4F5,stroke:#147887,color:#1f2937
-  subgraph n_sg_MIGRATION_REQUESTS["MIGRATION_REQUESTS · PK PK_MR"]
-    direction TB
-    n_MIGRATION_REQUESTS__MIGRATION_REQUEST_ID["MIGRATION_REQUEST_ID<br/>INTEGER · PK · NN"]
-    n_MIGRATION_REQUESTS__MIGRATION_URL["MIGRATION_URL<br/>VARCHAR2(300)"]
-    n_MIGRATION_REQUESTS__MIGRATION_INPUT["MIGRATION_INPUT<br/>VARCHAR2(700) · UQ"]
-    n_MIGRATION_REQUESTS__MIGRATION_STATUS["MIGRATION_STATUS<br/>INTEGER"]
-    n_MIGRATION_REQUESTS__MIGRATION_SERVER["MIGRATION_SERVER<br/>VARCHAR2(100)"]
-    n_MIGRATION_REQUESTS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_MIGRATION_REQUESTS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_MIGRATION_REQUESTS__LAST_MODIFICATION_DATE["LAST_MODIFICATION_DATE<br/>INTEGER"]
-    n_MIGRATION_REQUESTS__LAST_MODIFIED_BY["LAST_MODIFIED_BY<br/>VARCHAR2(500)"]
-    n_MIGRATION_REQUESTS__RETRY_COUNT["RETRY_COUNT<br/>INTEGER"]
-  end
-  style n_sg_MIGRATION_REQUESTS fill:#E8F4F5,stroke:#147887,color:#1f2937
-  subgraph n_sg_OUTPUT_MODULE_CONFIGS["OUTPUT_MODULE_CONFIGS · PK PK_OMC"]
-    direction TB
-    n_OUTPUT_MODULE_CONFIGS__OUTPUT_MOD_CONFIG_ID["OUTPUT_MOD_CONFIG_ID<br/>INTEGER · PK · NN"]
-    n_OUTPUT_MODULE_CONFIGS__APP_EXEC_ID["APP_EXEC_ID<br/>INTEGER · FK · UQ · NN"]
-    n_OUTPUT_MODULE_CONFIGS__RELEASE_VERSION_ID["RELEASE_VERSION_ID<br/>INTEGER · FK · UQ · NN"]
-    n_OUTPUT_MODULE_CONFIGS__PARAMETER_SET_HASH_ID["PARAMETER_SET_HASH_ID<br/>INTEGER · FK · UQ · NN"]
-    n_OUTPUT_MODULE_CONFIGS__OUTPUT_MODULE_LABEL["OUTPUT_MODULE_LABEL<br/>VARCHAR2(100) · UQ · NN"]
-    n_OUTPUT_MODULE_CONFIGS__GLOBAL_TAG["GLOBAL_TAG<br/>VARCHAR2(255) · UQ · NN"]
-    n_OUTPUT_MODULE_CONFIGS__SCENARIO["SCENARIO<br/>VARCHAR2(40)"]
-    n_OUTPUT_MODULE_CONFIGS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_OUTPUT_MODULE_CONFIGS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_OUTPUT_MODULE_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  subgraph n_sg_PARAMETER_SET_HASHES["PARAMETER_SET_HASHES · PK PK_PSH"]
-    direction TB
-    n_PARAMETER_SET_HASHES__PARAMETER_SET_HASH_ID["PARAMETER_SET_HASH_ID<br/>INTEGER · PK · NN"]
-    n_PARAMETER_SET_HASHES__PSET_HASH["PSET_HASH<br/>VARCHAR2(128) · UQ · NN"]
-    n_PARAMETER_SET_HASHES__PSET_NAME["PSET_NAME<br/>VARCHAR2(135)"]
-  end
-  style n_sg_PARAMETER_SET_HASHES fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  subgraph n_sg_PHYSICS_GROUPS["PHYSICS_GROUPS · PK PK_PG"]
-    direction TB
-    n_PHYSICS_GROUPS__PHYSICS_GROUP_ID["PHYSICS_GROUP_ID<br/>INTEGER · PK · NN"]
-    n_PHYSICS_GROUPS__PHYSICS_GROUP_NAME["PHYSICS_GROUP_NAME<br/>VARCHAR2(100) · UQ · NN"]
-  end
-  style n_sg_PHYSICS_GROUPS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_PRIMARY_DATASETS["PRIMARY_DATASETS · PK PK_PDS"]
-    direction TB
-    n_PRIMARY_DATASETS__PRIMARY_DS_ID["PRIMARY_DS_ID<br/>INTEGER · PK · NN"]
-    n_PRIMARY_DATASETS__PRIMARY_DS_NAME["PRIMARY_DS_NAME<br/>VARCHAR2(100) · UQ · NN"]
-    n_PRIMARY_DATASETS__PRIMARY_DS_TYPE_ID["PRIMARY_DS_TYPE_ID<br/>INTEGER · FK · NN"]
-    n_PRIMARY_DATASETS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_PRIMARY_DATASETS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-  end
-  style n_sg_PRIMARY_DATASETS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_PRIMARY_DS_TYPES["PRIMARY_DS_TYPES · PK PK_PDT"]
-    direction TB
-    n_PRIMARY_DS_TYPES__PRIMARY_DS_TYPE_ID["PRIMARY_DS_TYPE_ID<br/>INTEGER · PK · NN"]
-    n_PRIMARY_DS_TYPES__PRIMARY_DS_TYPE["PRIMARY_DS_TYPE<br/>VARCHAR2(100) · UQ · NN"]
-  end
-  style n_sg_PRIMARY_DS_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_PROCESSED_DATASETS["PROCESSED_DATASETS · PK PK_PSDS"]
-    direction TB
-    n_PROCESSED_DATASETS__PROCESSED_DS_ID["PROCESSED_DS_ID<br/>INTEGER · PK · NN"]
-    n_PROCESSED_DATASETS__PROCESSED_DS_NAME["PROCESSED_DS_NAME<br/>VARCHAR2(235) · UQ · NN"]
-  end
-  style n_sg_PROCESSED_DATASETS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_PROCESSING_ERAS["PROCESSING_ERAS · PK PK_PE"]
-    direction TB
-    n_PROCESSING_ERAS__PROCESSING_ERA_ID["PROCESSING_ERA_ID<br/>INTEGER · PK · NN"]
-    n_PROCESSING_ERAS__PROCESSING_VERSION["PROCESSING_VERSION<br/>INTEGER · UQ"]
-    n_PROCESSING_ERAS__CREATION_DATE["CREATION_DATE<br/>INTEGER"]
-    n_PROCESSING_ERAS__CREATE_BY["CREATE_BY<br/>VARCHAR2(500)"]
-    n_PROCESSING_ERAS__DESCRIPTION["DESCRIPTION<br/>VARCHAR2(40)"]
-  end
-  style n_sg_PROCESSING_ERAS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
-  subgraph n_sg_RELEASE_VERSIONS["RELEASE_VERSIONS · PK PK_RV"]
-    direction TB
-    n_RELEASE_VERSIONS__RELEASE_VERSION_ID["RELEASE_VERSION_ID<br/>INTEGER · PK · NN"]
-    n_RELEASE_VERSIONS__RELEASE_VERSION["RELEASE_VERSION<br/>VARCHAR2(100) · UQ · NN"]
-  end
-  style n_sg_RELEASE_VERSIONS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
-  n_ASSOCIATED_FILES__THIS_FILE_ID -->|"FL_AF · CASCADE"| n_FILES__FILE_ID
-  n_ASSOCIATED_FILES__ASSOCATED_FILE -->|"FL_AF2 · CASCADE"| n_FILES__FILE_ID
-  n_BLOCKS__DATASET_ID -->|"DS_BK · CASCADE"| n_DATASETS__DATASET_ID
-  n_BLOCK_PARENTS__THIS_BLOCK_ID -->|"BK_BP · CASCADE"| n_BLOCKS__BLOCK_ID
-  n_BLOCK_PARENTS__PARENT_BLOCK_ID -->|"BK_BP2 · CASCADE"| n_BLOCKS__BLOCK_ID
-  n_DATASETS__ACQUISITION_ERA_ID -->|"AQE_DS · SET NULL"| n_ACQUISITION_ERAS__ACQUISITION_ERA_ID
-  n_DATASETS__DATASET_ACCESS_TYPE_ID -->|"DTP_DS · NO ACTION"| n_DATASET_ACCESS_TYPES__DATASET_ACCESS_TYPE_ID
-  n_DATASETS__DATA_TIER_ID -->|"DT_DS · CASCADE"| n_DATA_TIERS__DATA_TIER_ID
-  n_DATASETS__PRIMARY_DS_ID -->|"PDS_DS · CASCADE"| n_PRIMARY_DATASETS__PRIMARY_DS_ID
-  n_DATASETS__PROCESSING_ERA_ID -->|"PE_DS · SET NULL"| n_PROCESSING_ERAS__PROCESSING_ERA_ID
-  n_DATASETS__PHYSICS_GROUP_ID -->|"PG_DS · SET NULL"| n_PHYSICS_GROUPS__PHYSICS_GROUP_ID
-  n_DATASETS__PROCESSED_DS_ID -->|"PSDS_DS · CASCADE"| n_PROCESSED_DATASETS__PROCESSED_DS_ID
-  n_DATASET_OUTPUT_MOD_CONFIGS__DATASET_ID -->|"DS_DC · CASCADE"| n_DATASETS__DATASET_ID
-  n_DATASET_OUTPUT_MOD_CONFIGS__OUTPUT_MOD_CONFIG_ID -->|"OMC_DC · CASCADE"| n_OUTPUT_MODULE_CONFIGS__OUTPUT_MOD_CONFIG_ID
-  n_DATASET_PARENTS__THIS_DATASET_ID -->|"DS_DP · CASCADE"| n_DATASETS__DATASET_ID
-  n_DATASET_PARENTS__PARENT_DATASET_ID -->|"DS_DP2 · CASCADE"| n_DATASETS__DATASET_ID
-  n_DATASET_RUNS__DATASET_ID -->|"DS_DR · CASCADE"| n_DATASETS__DATASET_ID
-  n_FILES__BRANCH_HASH_ID -->|"BH_FL · SET NULL"| n_BRANCH_HASHES__BRANCH_HASH_ID
-  n_FILES__BLOCK_ID -->|"BK_FL · CASCADE"| n_BLOCKS__BLOCK_ID
-  n_FILES__DATASET_ID -->|"DS_FL · CASCADE"| n_DATASETS__DATASET_ID
-  n_FILES__FILE_TYPE_ID -->|"FT_FL · NO ACTION"| n_FILE_DATA_TYPES__FILE_TYPE_ID
-  n_FILE_LUMIS__FILE_ID -->|"FL_FLM · CASCADE"| n_FILES__FILE_ID
-  n_FILE_OUTPUT_MOD_CONFIGS__FILE_ID -->|"FL_FC · CASCADE"| n_FILES__FILE_ID
-  n_FILE_OUTPUT_MOD_CONFIGS__OUTPUT_MOD_CONFIG_ID -->|"OMC_FC · CASCADE"| n_OUTPUT_MODULE_CONFIGS__OUTPUT_MOD_CONFIG_ID
-  n_FILE_PARENTS__THIS_FILE_ID -->|"FL_FP · CASCADE"| n_FILES__FILE_ID
-  n_FILE_PARENTS__PARENT_FILE_ID -->|"FL_FP2 · CASCADE"| n_FILES__FILE_ID
-  n_MIGRATION_BLOCKS__MIGRATION_REQUEST_ID -->|"MR_MB · CASCADE"| n_MIGRATION_REQUESTS__MIGRATION_REQUEST_ID
-  n_OUTPUT_MODULE_CONFIGS__APP_EXEC_ID -->|"AE_OMC · CASCADE"| n_APPLICATION_EXECUTABLES__APP_EXEC_ID
-  n_OUTPUT_MODULE_CONFIGS__PARAMETER_SET_HASH_ID -->|"PSH_OMC · CASCADE"| n_PARAMETER_SET_HASHES__PARAMETER_SET_HASH_ID
-  n_OUTPUT_MODULE_CONFIGS__RELEASE_VERSION_ID -->|"RV_OMC · CASCADE"| n_RELEASE_VERSIONS__RELEASE_VERSION_ID
-  n_PRIMARY_DATASETS__PRIMARY_DS_TYPE_ID -->|"PDT_PDS · NO ACTION"| n_PRIMARY_DS_TYPES__PRIMARY_DS_TYPE_ID
+  n_table_BLOCKS ~~~ n_table_DATASETS
+  n_table_DATASETS ~~~ n_table_DATASET_RUNS
+  n_table_DATASET_RUNS ~~~ n_table_FILES
+  n_table_FILES ~~~ n_table_FILE_LUMIS
+  n_table_FILE_LUMIS ~~~ n_table_ACQUISITION_ERAS
+  n_table_ACQUISITION_ERAS ~~~ n_table_BRANCH_HASHES
+  n_table_BRANCH_HASHES ~~~ n_table_DATASET_ACCESS_TYPES
+  n_table_DATASET_ACCESS_TYPES ~~~ n_table_DATA_TIERS
+  n_table_DATA_TIERS ~~~ n_table_FILE_DATA_TYPES
+  n_table_FILE_DATA_TYPES ~~~ n_table_PHYSICS_GROUPS
+  n_table_PHYSICS_GROUPS ~~~ n_table_PRIMARY_DATASETS
+  n_table_PRIMARY_DATASETS ~~~ n_table_PRIMARY_DS_TYPES
+  n_table_PRIMARY_DS_TYPES ~~~ n_table_PROCESSED_DATASETS
+  n_table_PROCESSED_DATASETS ~~~ n_table_PROCESSING_ERAS
+  n_table_PROCESSING_ERAS ~~~ n_table_ASSOCIATED_FILES
+  n_table_ASSOCIATED_FILES ~~~ n_table_BLOCK_PARENTS
+  n_table_BLOCK_PARENTS ~~~ n_table_DATASET_PARENTS
+  n_table_DATASET_PARENTS ~~~ n_table_FILE_PARENTS
+  n_table_FILE_PARENTS ~~~ n_table_APPLICATION_EXECUTABLES
+  n_table_APPLICATION_EXECUTABLES ~~~ n_table_DATASET_OUTPUT_MOD_CONFIGS
+  n_table_DATASET_OUTPUT_MOD_CONFIGS ~~~ n_table_FILE_OUTPUT_MOD_CONFIGS
+  n_table_FILE_OUTPUT_MOD_CONFIGS ~~~ n_table_OUTPUT_MODULE_CONFIGS
+  n_table_OUTPUT_MODULE_CONFIGS ~~~ n_table_PARAMETER_SET_HASHES
+  n_table_PARAMETER_SET_HASHES ~~~ n_table_RELEASE_VERSIONS
+  n_table_RELEASE_VERSIONS ~~~ n_table_DBS_VERSIONS
+  n_table_DBS_VERSIONS ~~~ n_table_MIGRATION_BLOCKS
+  n_table_MIGRATION_BLOCKS ~~~ n_table_MIGRATION_REQUESTS
+  n_table_ASSOCIATED_FILES -->|"2 FKs"| n_table_FILES
+  n_table_BLOCKS -->|"DS_BK"| n_table_DATASETS
+  n_table_BLOCK_PARENTS -->|"2 FKs"| n_table_BLOCKS
+  n_table_DATASETS -->|"AQE_DS"| n_table_ACQUISITION_ERAS
+  n_table_DATASETS -->|"DTP_DS"| n_table_DATASET_ACCESS_TYPES
+  n_table_DATASETS -->|"DT_DS"| n_table_DATA_TIERS
+  n_table_DATASETS -->|"PG_DS"| n_table_PHYSICS_GROUPS
+  n_table_DATASETS -->|"PDS_DS"| n_table_PRIMARY_DATASETS
+  n_table_DATASETS -->|"PSDS_DS"| n_table_PROCESSED_DATASETS
+  n_table_DATASETS -->|"PE_DS"| n_table_PROCESSING_ERAS
+  n_table_DATASET_OUTPUT_MOD_CONFIGS -->|"DS_DC"| n_table_DATASETS
+  n_table_DATASET_OUTPUT_MOD_CONFIGS -->|"OMC_DC"| n_table_OUTPUT_MODULE_CONFIGS
+  n_table_DATASET_PARENTS -->|"2 FKs"| n_table_DATASETS
+  n_table_DATASET_RUNS -->|"DS_DR"| n_table_DATASETS
+  n_table_FILES -->|"BK_FL"| n_table_BLOCKS
+  n_table_FILES -->|"BH_FL"| n_table_BRANCH_HASHES
+  n_table_FILES -->|"DS_FL"| n_table_DATASETS
+  n_table_FILES -->|"FT_FL"| n_table_FILE_DATA_TYPES
+  n_table_FILE_LUMIS -->|"FL_FLM"| n_table_FILES
+  n_table_FILE_OUTPUT_MOD_CONFIGS -->|"FL_FC"| n_table_FILES
+  n_table_FILE_OUTPUT_MOD_CONFIGS -->|"OMC_FC"| n_table_OUTPUT_MODULE_CONFIGS
+  n_table_FILE_PARENTS -->|"2 FKs"| n_table_FILES
+  n_table_MIGRATION_BLOCKS -->|"MR_MB"| n_table_MIGRATION_REQUESTS
+  n_table_OUTPUT_MODULE_CONFIGS -->|"AE_OMC"| n_table_APPLICATION_EXECUTABLES
+  n_table_OUTPUT_MODULE_CONFIGS -->|"PSH_OMC"| n_table_PARAMETER_SET_HASHES
+  n_table_OUTPUT_MODULE_CONFIGS -->|"RV_OMC"| n_table_RELEASE_VERSIONS
+  n_table_PRIMARY_DATASETS -->|"PDT_PDS"| n_table_PRIMARY_DS_TYPES
+  style n_table_BLOCKS fill:#E6F5ED,stroke:#17734D,color:#1f2937
+  style n_table_DATASETS fill:#E6F5ED,stroke:#17734D,color:#1f2937
+  style n_table_DATASET_RUNS fill:#E6F5ED,stroke:#17734D,color:#1f2937
+  style n_table_FILES fill:#E6F5ED,stroke:#17734D,color:#1f2937
+  style n_table_FILE_LUMIS fill:#E6F5ED,stroke:#17734D,color:#1f2937
+  style n_table_ACQUISITION_ERAS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_BRANCH_HASHES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_DATASET_ACCESS_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_DATA_TIERS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_FILE_DATA_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_PHYSICS_GROUPS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_PRIMARY_DATASETS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_PRIMARY_DS_TYPES fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_PROCESSED_DATASETS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_PROCESSING_ERAS fill:#E9F2FC,stroke:#245FA9,color:#1f2937
+  style n_table_ASSOCIATED_FILES fill:#F3EAFF,stroke:#7047AA,color:#1f2937
+  style n_table_BLOCK_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
+  style n_table_DATASET_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
+  style n_table_FILE_PARENTS fill:#F3EAFF,stroke:#7047AA,color:#1f2937
+  style n_table_APPLICATION_EXECUTABLES fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_DATASET_OUTPUT_MOD_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_FILE_OUTPUT_MOD_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_OUTPUT_MODULE_CONFIGS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_PARAMETER_SET_HASHES fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_RELEASE_VERSIONS fill:#FFF0DF,stroke:#AC5516,color:#1f2937
+  style n_table_DBS_VERSIONS fill:#E8F4F5,stroke:#147887,color:#1f2937
+  style n_table_MIGRATION_BLOCKS fill:#E8F4F5,stroke:#147887,color:#1f2937
+  style n_table_MIGRATION_REQUESTS fill:#E8F4F5,stroke:#147887,color:#1f2937
 ```
+## Visualizations
+
+The whole-schema graph and five functional areas below use the selected visualization mode. All surrounding documentation is mode-independent.
+
+<details>
+<summary><strong>Whole-schema relations</strong></summary>
+
+The whole-schema relationship graph rendered with the selected visualization mode.
+
+[Open the whole-schema SVG at full size](generated/dbs-oracle.whole.svg)
+
+![Whole-schema relational SVG](generated/dbs-oracle.whole.svg)
 </details>
 
 <details>
-<summary><strong>Go-native SVG: Core data and containment</strong> — fixed table cards and column ports</summary>
+<summary><strong>Core data and containment</strong></summary>
+
+Datasets, blocks, files, runs, and luminosity sections.
 
 [Open the SVG at full size](generated/dbs-oracle.core.svg)
 
 ![Core data and containment relational SVG](generated/dbs-oracle.core.svg)
-
 </details>
 
 <details>
-<summary><strong>Go-native SVG: Classification and lookup</strong> — fixed table cards and column ports</summary>
+<summary><strong>Classification and lookup</strong></summary>
+
+Dataset identity, eras, tiers, types, physics groups, and branch hashes.
 
 [Open the SVG at full size](generated/dbs-oracle.class.svg)
 
 ![Classification and lookup relational SVG](generated/dbs-oracle.class.svg)
-
 </details>
 
 <details>
-<summary><strong>Go-native SVG: Parentage and associations</strong> — fixed table cards and column ports</summary>
+<summary><strong>Parentage and associations</strong></summary>
+
+Dataset, block, and file provenance links.
 
 [Open the SVG at full size](generated/dbs-oracle.parent.svg)
 
 ![Parentage and associations relational SVG](generated/dbs-oracle.parent.svg)
-
 </details>
 
 <details>
-<summary><strong>Go-native SVG: Processing configuration</strong> — fixed table cards and column ports</summary>
+<summary><strong>Processing configuration</strong></summary>
+
+Applications, releases, parameter sets, and output-module associations.
 
 [Open the SVG at full size](generated/dbs-oracle.config.svg)
 
 ![Processing configuration relational SVG](generated/dbs-oracle.config.svg)
-
 </details>
 
 <details>
-<summary><strong>Go-native SVG: Migration and instance metadata</strong> — fixed table cards and column ports</summary>
+<summary><strong>Migration and instance metadata</strong></summary>
+
+Migration requests and DBS schema/version metadata.
 
 [Open the SVG at full size](generated/dbs-oracle.ops.svg)
 
 ![Migration and instance metadata relational SVG](generated/dbs-oracle.ops.svg)
-
 </details>
 
 ## Foreign-key registry

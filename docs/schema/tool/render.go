@@ -53,8 +53,6 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	fmt.Fprintf(&b, "> Generated from [`%s`](../../static/schema/DDL/%s) (%s, SHA-256 `%s`) with %s %s. This is the persisted database structure defined by the DDL, not a live database inventory.\n\n", schema.Source.File, schema.Source.File, schema.Source.Dialect, schema.Source.SHA256, schema.Parser.Name, schema.Parser.Version)
 	fmt.Fprintf(&b, "**%d tables · %d columns · %d primary keys · %d unique constraints · %d checks · %d foreign keys · %d explicit indexes**\n\n", len(schema.Tables), columnCount(schema), stats.PrimaryKeys, stats.Unique, stats.Checks, len(schema.ForeignKeys), stats.Indexes)
 	b.WriteString("[Legend](#how-to-read-this-atlas) · [Architecture](#architecture) · [Visualizations](#visualizations) · [Foreign keys](#foreign-key-registry) · [Table dictionary](#table-dictionary) · [Other database objects](#other-database-objects)\n\n")
-	fmt.Fprintf(&b, "Selected visualizations: **%s** · layout: **%s**.\n\n", strings.Join(selectedVisualizations(options.Visualizations), ", "), options.Layout)
-
 	b.WriteString(renderLegend(options.Layout))
 
 	b.WriteString("## Architecture\n\n")
@@ -62,49 +60,22 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	b.WriteString(renderArchitecture(options.Layout))
 	b.WriteString("\n")
 
+	b.WriteString("## Whole-schema relations\n\n")
+	b.WriteString("This compact overview shows every table and relationship at table level. Exact column endpoints, constraint names, delete actions, and keys are preserved in the selected maps, registry, and dictionary below.\n\n")
+	b.WriteString(renderOverview(schema, options.Layout))
+	b.WriteString("\n")
+
 	b.WriteString("## Visualizations\n\n")
-	b.WriteString("Each selected representation is folded independently. Compact spacing is applied to every Mermaid flowchart; full column data remains available in the table dictionary.\n\n")
-	if options.Visualizations["full"] {
-		b.WriteString("<details>\n<summary><strong>Full flowchart</strong> — every table and every column, with exact FK endpoints</summary>\n\n")
-		b.WriteString("This is the direct compacted form of the original all-column output. It is complete but necessarily the largest Mermaid view.\n\n")
-		b.WriteString(renderFullMap(schema, options.Layout))
-		b.WriteString("\n</details>\n\n")
-	}
-	if options.Visualizations["er"] {
-		b.WriteString("<details>\n<summary><strong>ER view</strong> — compact database tables with every column</summary>\n\n")
-		b.WriteString("Mermaid ER notation is compact and familiar. Relationships attach to entities; use the key or domain maps when exact row endpoints are required.\n\n")
-		b.WriteString(renderERDiagram(schema))
-		b.WriteString("\n</details>\n\n")
-	}
-	if options.Visualizations["keys"] {
-		b.WriteString("<details>\n<summary><strong>Schema-wide key map</strong> — PK/FK/UQ columns and exact arrows</summary>\n\n")
-		b.WriteString("Non-relational columns are folded into the table dictionary, making this view substantially smaller than the full flowchart.\n\n")
-		b.WriteString(renderKeyMap(schema, options.Layout))
-		b.WriteString("\n</details>\n\n")
-	}
-	if options.Visualizations["domains"] {
-		for _, group := range schemaGroups {
-			members := tablesInGroup(schema, group.Key)
-			if len(members) == 0 {
-				continue
-			}
-			fks := foreignKeysForGroup(schema.ForeignKeys, group.Key)
-			fmt.Fprintf(&b, "<details>\n<summary><strong>Domain map: %s</strong> — %s, %s</summary>\n\n", group.Title, countNoun(len(members), "primary table"), countNoun(len(fks), "foreign key"))
-			fmt.Fprintf(&b, "%s Only relationship-bearing columns are expanded; each header reports folded columns.\n\n", group.Description)
-			b.WriteString(renderDomainMap(schema, group, members, fks, options.Layout))
-			b.WriteString("\n</details>\n\n")
+	b.WriteString("The whole-schema graph and five functional areas below use the selected visualization mode. All surrounding documentation is mode-independent.\n\n")
+	fmt.Fprintf(&b, "<details>\n<summary><strong>Whole-schema relations</strong></summary>\n\nThe whole-schema relationship graph rendered with the selected visualization mode.\n\n%s\n</details>\n\n", renderVisualizationWholeSchema(schema, options))
+	for _, group := range schemaGroups {
+		if group.Key == "other" {
+			continue
 		}
-	}
-	if options.Visualizations["svg"] {
-		for _, group := range schemaGroups {
-			ref := options.SVGReferences[group.Key]
-			if ref == "" {
-				continue
-			}
-			fmt.Fprintf(&b, "<details>\n<summary><strong>Go-native SVG: %s</strong> — fixed table cards and column ports</summary>\n\n", group.Title)
-			fmt.Fprintf(&b, "[Open the SVG at full size](%s)\n\n![%s relational SVG](%s)\n\n", ref, group.Title, ref)
-			b.WriteString("</details>\n\n")
-		}
+		fmt.Fprintf(&b, "<details>\n<summary><strong>%s</strong></summary>\n\n", group.Title)
+		fmt.Fprintf(&b, "%s\n\n", group.Description)
+		b.WriteString(renderVisualizationGroup(schema, group, options))
+		b.WriteString("\n</details>\n\n")
 	}
 
 	b.WriteString("## Foreign-key registry\n\n")
@@ -146,6 +117,41 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	return b.String()
 }
 
+func renderVisualizationWholeSchema(schema *Schema, options RenderOptions) string {
+	switch {
+	case options.Visualizations["svg"]:
+		ref := options.SVGReferences["whole"]
+		if ref == "" {
+			return "SVG asset unavailable."
+		}
+		return fmt.Sprintf("[Open the whole-schema SVG at full size](%s)\n\n![Whole-schema relational SVG](%s)", ref, ref)
+	case options.Visualizations["er"]:
+		return renderERWholeDiagram(schema, options.Layout)
+	default:
+		return renderOverview(schema, options.Layout)
+	}
+}
+
+func renderVisualizationGroup(schema *Schema, group schemaGroup, options RenderOptions) string {
+	members := tablesInGroup(schema, group.Key)
+	if len(members) == 0 {
+		return "No tables in this functional area."
+	}
+	fks := foreignKeysForGroup(schema.ForeignKeys, group.Key)
+	switch {
+	case options.Visualizations["svg"]:
+		ref := options.SVGReferences[group.Key]
+		if ref == "" {
+			return "SVG asset unavailable."
+		}
+		return fmt.Sprintf("[Open the SVG at full size](%s)\n\n![%s relational SVG](%s)", ref, group.Title, ref)
+	case options.Visualizations["er"]:
+		return renderERDiagram(schema, group, options.Layout)
+	default:
+		return renderDomainMap(schema, group, members, fks, options.Layout, false)
+	}
+}
+
 type stats struct{ PrimaryKeys, Unique, Checks, Indexes int }
 
 func schemaStats(schema *Schema) stats {
@@ -179,9 +185,9 @@ func renderArchitecture(layout string) string {
 		"```\n"
 }
 
-func renderOverview(schema *Schema) string {
+func renderOverview(schema *Schema, layout string) string {
 	var b strings.Builder
-	b.WriteString("```mermaid\nflowchart LR\n")
+	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart TB\n")
 	for _, group := range schemaGroups {
 		members := tablesInGroup(schema, group.Key)
 		if len(members) == 0 {
@@ -194,8 +200,15 @@ func renderOverview(schema *Schema) string {
 		}
 		b.WriteString("  end\n")
 	}
-	for _, fk := range schema.ForeignKeys {
-		fmt.Fprintf(&b, "  %s -->|\"%s\"| %s\n", mermaidID("table_"+fk.SourceTable), mermaidText(fk.Constraint), mermaidID("table_"+fk.TargetTable))
+	var orderedTables []string
+	for _, group := range schemaGroups {
+		for _, table := range tablesInGroup(schema, group.Key) {
+			orderedTables = append(orderedTables, mermaidID("table_"+table.Name))
+		}
+	}
+	writeMermaidVerticalOrder(&b, orderedTables)
+	for _, edge := range aggregateOverviewEdges(schema.ForeignKeys) {
+		b.WriteString(edge + "\n")
 	}
 	for _, group := range schemaGroups {
 		for _, table := range tablesInGroup(schema, group.Key) {
@@ -206,7 +219,7 @@ func renderOverview(schema *Schema) string {
 	return b.String()
 }
 
-func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey, layout string) string {
+func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey, layout string, allColumns bool) string {
 	tableSet := map[string]bool{}
 	for _, table := range members {
 		tableSet[canonicalName(table.Name)] = true
@@ -224,14 +237,12 @@ func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []F
 
 	var b strings.Builder
 	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart " + domainDirection(group.Key) + "\n")
+	var orderedSubgraphs []string
 	for _, table := range included {
-		columns := mapColumnsFor(table, fks, false)
-		pk := primaryKey(table)
-		header := fmt.Sprintf("%s · PK %s", table.Name, pk.Name)
-		if folded := len(table.Columns) - len(columns); folded > 0 {
-			header += fmt.Sprintf(" · +%d folded", folded)
-		}
+		columns := mapColumnsFor(table, fks, allColumns)
+		header := mermaidTableHeader(table, columns)
 		fmt.Fprintf(&b, "  subgraph %s[\"%s\"]\n    direction TB\n", mermaidID("sg_"+table.Name), mermaidText(header))
+		orderedSubgraphs = append(orderedSubgraphs, mermaidID("sg_"+table.Name))
 		for _, column := range columns {
 			fmt.Fprintf(&b, "    %s[\"%s\"]\n", mermaidID(table.Name+"__"+column.Name), mermaidText(columnLabel(table, column, fks)))
 		}
@@ -239,6 +250,7 @@ func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []F
 		style := groupForTable(table.Name)
 		fmt.Fprintf(&b, "  style %s fill:%s,stroke:%s,color:#1f2937\n", mermaidID("sg_"+table.Name), style.Fill, style.Stroke)
 	}
+	writeMermaidVerticalOrder(&b, orderedSubgraphs)
 	for _, fk := range fks {
 		for i, source := range fk.SourceColumns {
 			fmt.Fprintf(&b, "  %s -->|\"%s · %s\"| %s\n", mermaidID(fk.SourceTable+"__"+source), mermaidText(fk.Constraint), mermaidText(deleteRule(fk.OnDelete)), mermaidID(fk.TargetTable+"__"+fk.TargetColumns[i]))
@@ -296,7 +308,7 @@ func columnLabel(table Table, column Column, fks []ForeignKey) string {
 	}
 	for _, constraint := range table.Constraints {
 		if constraint.Type == "UNIQUE" && containsName(constraint.Columns, column.Name) {
-			badges = appendOnce(badges, "UQ")
+			badges = appendOnce(badges, "UK")
 		}
 	}
 	if !column.Nullable {

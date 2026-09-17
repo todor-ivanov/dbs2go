@@ -2,9 +2,9 @@
 
 This is the canonical, standalone replacement for the experiments in the
 parent directory. It parses DBS DDL into a validated schema model and emits
-deterministic JSON plus a GitHub-native Markdown/Mermaid atlas. The primary
-documentation is `../README.md`; it needs no HTML, GitHub Pages, or external
-renderer.
+deterministic JSON plus GitHub-native Markdown/Mermaid atlases. Each selected
+visualization is written to its own `../README.<option>.md`; the output needs
+no HTML, GitHub Pages, or external renderer.
 
 It uses GoSQLX v1.14.0 for the relational AST. Small, explicit compatibility
 adapters preserve Oracle syntax GoSQLX cannot currently represent: named
@@ -34,17 +34,24 @@ go run . \
   -emit json
 ```
 
+`-visualizations all` writes one self-contained Markdown document per option:
+`../README.er.md`, `../README.domains.md`, and `../README.svg.md`. Selecting a comma-separated
+subset writes only those option files. Each document includes the shared
+legend, architecture, whole-schema relation overview, foreign-key registry,
+table dictionary, and auxiliary objects. The fixed Whole-schema relations
+subsection and the five functional-area subsections under `## Visualizations`
+are the only visualization content: the selected mode is embedded once in each
+subsection.
+
 For MySQL, use `create-mysql-schema.sql` and `-dialect mysql`.
 
 `-visualizations` accepts any comma-separated combination of:
 
-- `full`: every table and column in one exact Mermaid flowchart;
 - `er`: compact Mermaid ER tables;
-- `keys`: one schema-wide PK/FK/UQ column map;
 - `domains`: five smaller exact column-level maps;
-- `svg`: five deterministic Go-native SVGs with fixed table cards and column
-  ports;
-- `all`: all five modes.
+- `svg`: one whole-schema plus five deterministic Go-native SVGs with fixed
+  table cards and column ports;
+- `all`: all three modes.
 
 `-layout compact` is the default and applies reduced spacing to all flowchart
 views and SVG assets. `-layout standard` is available for less dense output.

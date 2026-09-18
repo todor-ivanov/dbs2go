@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// TestOracleCompatibilityAdapters verifies the Oracle syntax adapters and metadata.
 func TestOracleCompatibilityAdapters(t *testing.T) {
 	ddl := []byte(`
 CREATE TABLE PARENT (
@@ -59,6 +60,7 @@ GRANT SELECT ON CHILD TO READER;
 	}
 }
 
+// TestMySQLHashComments verifies MySQL hash comments do not leak into statements.
 func TestMySQLHashComments(t *testing.T) {
 	ddl := []byte("# heading with ; punctuation\nCREATE TABLE `T` (`ID` INTEGER NOT NULL, CONSTRAINT `PK_T` PRIMARY KEY (`ID`)) ENGINE = InnoDB;\n")
 	schema, err := parseSchema("fixture.sql", ddl, "mysql")
@@ -70,6 +72,7 @@ func TestMySQLHashComments(t *testing.T) {
 	}
 }
 
+// TestInvalidReferenceIsFatal ensures unresolved relationships reject the model.
 func TestInvalidReferenceIsFatal(t *testing.T) {
 	ddl := []byte(`CREATE TABLE T (ID INTEGER, CONSTRAINT PK_T PRIMARY KEY (ID));
 ALTER TABLE T ADD CONSTRAINT FK_BAD FOREIGN KEY (MISSING) REFERENCES T (ID);`)
@@ -78,6 +81,7 @@ ALTER TABLE T ADD CONSTRAINT FK_BAD FOREIGN KEY (MISSING) REFERENCES T (ID);`)
 	}
 }
 
+// TestRealSchemasAndDeterminism parses both checked-in dialect fixtures repeatedly.
 func TestRealSchemasAndDeterminism(t *testing.T) {
 	tests := []struct {
 		file, dialect        string
@@ -112,6 +116,7 @@ func TestRealSchemasAndDeterminism(t *testing.T) {
 	}
 }
 
+// TestAtomicWriterReplacesCompleteFiles verifies staged outputs replace old files.
 func TestAtomicWriterReplacesCompleteFiles(t *testing.T) {
 	dir := t.TempDir()
 	one, two := filepath.Join(dir, "schema.json"), filepath.Join(dir, "schema.md")
@@ -131,6 +136,7 @@ func TestAtomicWriterReplacesCompleteFiles(t *testing.T) {
 	}
 }
 
+// TestMarkdownAtlasIsCompactAndColumnPrecise checks shared sections and exact arrows.
 func TestMarkdownAtlasIsCompactAndColumnPrecise(t *testing.T) {
 	path := "../../../static/schema/DDL/create-oracle-schema.sql"
 	input, err := os.ReadFile(path)
@@ -164,6 +170,7 @@ func TestMarkdownAtlasIsCompactAndColumnPrecise(t *testing.T) {
 	}
 }
 
+// TestAllVisualizationModesAndNativeSVG checks every mode and deterministic SVG geometry.
 func TestAllVisualizationModesAndNativeSVG(t *testing.T) {
 	path := "../../../static/schema/DDL/create-oracle-schema.sql"
 	input, err := os.ReadFile(path)
@@ -252,6 +259,7 @@ func TestAllVisualizationModesAndNativeSVG(t *testing.T) {
 	}
 }
 
+// TestVisualizationSelection verifies supported and removed mode names.
 func TestVisualizationSelection(t *testing.T) {
 	for _, name := range []string{"er", "domains", "svg"} {
 		views, err := parseVisualizations(name)

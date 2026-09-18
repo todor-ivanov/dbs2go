@@ -31,6 +31,8 @@ func splitStatements(src string) ([]statement, error) {
 			next = runes[i+1]
 		}
 		if lineComment {
+			// Preserve newline characters from comments so diagnostic line numbers
+			// continue to refer to the original DDL.
 			if ch == '\n' {
 				lineComment = false
 				b.WriteRune(ch)
@@ -50,6 +52,8 @@ func splitStatements(src string) ([]statement, error) {
 			continue
 		}
 		if quote != 0 {
+			// Quoted semicolons and escaped/doubled quote characters belong to the
+			// current statement rather than the outer scanner.
 			b.WriteRune(ch)
 			if ch == '\n' {
 				line++
@@ -111,4 +115,5 @@ func splitStatements(src string) ([]statement, error) {
 	return out, nil
 }
 
+// isSpace identifies the SQL whitespace characters relevant to statement scanning.
 func isSpace(r rune) bool { return r == ' ' || r == '\t' || r == '\r' || r == '\n' }

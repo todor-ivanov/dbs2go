@@ -7,8 +7,10 @@ import (
 	"strings"
 )
 
+// nonERTypeCharacter identifies SQL type characters Mermaid ER identifiers reject.
 var nonERTypeCharacter = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
+// selectedVisualizations returns modes in stable file-generation order.
 func selectedVisualizations(selected map[string]bool) []string {
 	var out []string
 	for _, name := range []string{"er", "domains", "svg"} {
@@ -19,6 +21,7 @@ func selectedVisualizations(selected map[string]bool) []string {
 	return out
 }
 
+// mermaidDirective returns the Mermaid initialization block for the requested density.
 func mermaidDirective(layout string) string {
 	if layout == "standard" {
 		return `%%{init: {"flowchart": {"nodeSpacing": 12, "rankSpacing": 22, "curve": "linear", "padding": 4}, "themeVariables": {"fontSize": "12px"}}}%%`
@@ -26,10 +29,12 @@ func mermaidDirective(layout string) string {
 	return `%%{init: {"flowchart": {"nodeSpacing": 4, "rankSpacing": 8, "curve": "linear", "padding": 2}, "themeVariables": {"fontSize": "11px"}}}%%`
 }
 
+// domainDirection keeps domain maps top-to-bottom for readable GitHub rendering.
 func domainDirection(group string) string {
 	return "TB"
 }
 
+// renderLegend emits the shared notation, relationship, marker, and color legend.
 func renderLegend(layout string) string {
 	var b strings.Builder
 	b.WriteString("## How to read this atlas\n\n")
@@ -47,14 +52,17 @@ func renderLegend(layout string) string {
 	return b.String()
 }
 
+// renderFullMap is the legacy all-column flowchart retained for compatibility.
 func renderFullMap(schema *Schema, layout string) string {
 	return renderFlowMap(schema, schema.Tables, schema.ForeignKeys, true, "TB", layout)
 }
 
+// renderKeyMap is the legacy key-focused flowchart retained for compatibility.
 func renderKeyMap(schema *Schema, layout string) string {
 	return renderFlowMap(schema, schema.Tables, schema.ForeignKeys, false, "TB", layout)
 }
 
+// renderFlowMap builds a column-level Mermaid flowchart for the supplied tables.
 func renderFlowMap(schema *Schema, tables []Table, fks []ForeignKey, allColumns bool, direction, layout string) string {
 	var b strings.Builder
 	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart " + direction + "\n")
@@ -81,6 +89,7 @@ func renderFlowMap(schema *Schema, tables []Table, fks []ForeignKey, allColumns 
 	return b.String()
 }
 
+// renderERDiagram renders one functional area's complete Mermaid ER diagram.
 func renderERDiagram(schema *Schema, group schemaGroup, layout string) string {
 	var b strings.Builder
 	members := tablesInGroup(schema, group.Key)
@@ -135,6 +144,8 @@ func renderERDiagram(schema *Schema, group schemaGroup, layout string) string {
 	return b.String()
 }
 
+// renderERWholeDiagram renders one schema-wide Mermaid ER diagram for the mode's
+// dedicated Whole-schema relations subsection.
 func renderERWholeDiagram(schema *Schema, layout string) string {
 	var b strings.Builder
 	b.WriteString("```mermaid\n")
@@ -173,6 +184,7 @@ func renderERWholeDiagram(schema *Schema, layout string) string {
 	return b.String()
 }
 
+// mermaidTableHeader summarizes a table and reports folded columns.
 func mermaidTableHeader(table Table, columns []Column) string {
 	header := fmt.Sprintf("%s · PK %s · %d columns · %d shown", table.Name, primaryKey(table).Name, len(table.Columns), len(columns))
 	if folded := len(table.Columns) - len(columns); folded > 0 {
@@ -181,12 +193,14 @@ func mermaidTableHeader(table Table, columns []Column) string {
 	return header
 }
 
+// writeMermaidVerticalOrder adds invisible ordering edges to stabilize layout.
 func writeMermaidVerticalOrder(b *strings.Builder, ids []string) {
 	for index := 1; index < len(ids); index++ {
 		fmt.Fprintf(b, "  %s ~~~ %s\n", ids[index-1], ids[index])
 	}
 }
 
+// erType converts SQL type text into a Mermaid ER-safe type token.
 func erType(value string) string {
 	value = nonERTypeCharacter.ReplaceAllString(value, "_")
 	value = strings.Trim(value, "_")

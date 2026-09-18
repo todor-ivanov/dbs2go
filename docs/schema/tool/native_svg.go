@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// svgBox stores the rendered geometry and column ports for one table card.
 type svgBox struct {
 	Table   Table
 	Columns []Column
@@ -18,9 +19,12 @@ type svgBox struct {
 	Rows    map[string]float64
 }
 
+// renderNativeSVGs renders one whole-schema asset plus one asset per functional area.
 func renderNativeSVGs(schema *Schema, layout string) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	whole := schemaGroup{"whole", "Whole-schema relations", "All DBS tables and relationships.", "#E8EEF5", "#40566F"}
+	// The whole asset is separate from the five group assets so each Markdown
+	// mode can embed one graph for its Whole-schema relations subsection.
 	wholeData, err := renderNativeSVG(schema, whole, schema.Tables, schema.ForeignKeys, layout)
 	if err != nil {
 		return nil, fmt.Errorf("whole: %w", err)
@@ -41,6 +45,8 @@ func renderNativeSVGs(schema *Schema, layout string) (map[string][]byte, error) 
 	return out, nil
 }
 
+// renderNativeSVG lays out table cards, paints exact FK paths, and serializes a
+// self-contained SVG without invoking Graphviz or another external renderer.
 func renderNativeSVG(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey, layout string) ([]byte, error) {
 	tableSet := map[string]bool{}
 	for _, table := range members {
@@ -74,12 +80,16 @@ func renderNativeSVG(schema *Schema, group schemaGroup, members []Table, fks []F
 
 	width, row, header, gapX, gapY := 260.0, 23.0, 46.0, 76.0, 14.0
 	if layout == "standard" {
+		// Standard mode increases card and inter-column spacing for inspection;
+		// compact mode is the GitHub-friendly default.
 		width, row, header, gapX, gapY = 320, 28, 50, 130, 28
 	}
 	margin, top := 32.0, 142.0
 	boxes := map[string]*svgBox{}
 	maxBottom := top
 	for level := 0; level <= maxLevel; level++ {
+		// Referenced tables are placed to the right of their dependents; tables
+		// at the same level are stacked vertically in stable name order.
 		x := margin + float64(maxLevel-level)*(width+gapX)
 		y := top
 		for _, table := range byLevel[level] {
@@ -114,6 +124,7 @@ func renderNativeSVG(schema *Schema, group schemaGroup, members []Table, fks []F
 	fmt.Fprintf(&b, `<text x="%.0f" y="124" font-family="ui-monospace, monospace" font-size="10" fill="#52657a">PK primary key · FK foreign key · UQ unique · NN not null · +N folded columns are in the dictionary</text>`+"\n", margin)
 
 	// Edges are painted first so table cards and row ports remain legible.
+	// Pair offsets keep parallel relationships distinguishable without changing endpoints.
 	pairCount := map[string]int{}
 	for _, fk := range fks {
 		for index, sourceColumn := range fk.SourceColumns {
@@ -153,6 +164,7 @@ func renderNativeSVG(schema *Schema, group schemaGroup, members []Table, fks []F
 	return []byte(b.String()), nil
 }
 
+// newSVGBox computes a table card's dimensions and row-port coordinates.
 func newSVGBox(table Table, columns []Column, x, y, width, header, row float64) *svgBox {
 	box := &svgBox{Table: table, Columns: columns, X: x, Y: y, Width: width, Header: header, Row: row, Rows: map[string]float64{}}
 	box.Height = header + float64(len(columns))*row
@@ -162,17 +174,22 @@ func newSVGBox(table Table, columns []Column, x, y, width, header, row float64) 
 	return box
 }
 
+// renderSVGEdgeLabel writes the two-line FK constraint/delete-rule label.
 func renderSVGEdgeLabel(b *strings.Builder, x, y float64, color, constraint, action string) {
 	fmt.Fprintf(b, `<rect x="%.1f" y="%.1f" width="68" height="20" rx="3" fill="#ffffff" opacity="0.94"/>`+"\n", x, y)
 	fmt.Fprintf(b, `<text x="%.1f" y="%.1f" text-anchor="middle" font-family="ui-monospace, monospace" font-size="7.5" font-weight="700" fill="%s"><tspan x="%.1f">%s</tspan><tspan x="%.1f" dy="7.5" font-size="7" font-weight="500">%s</tspan></text>`+"\n", x+34, y+7.5, color, x+34, xmlText(constraint), x+34, xmlText(action))
 }
 
+// svgLevels assigns dependency levels used to place referenced tables toward
+// the right and dependent tables toward the left of the SVG.
 func svgLevels(tables []Table, fks []ForeignKey) map[string]int {
 	levels := map[string]int{}
 	allowed := map[string]bool{}
 	for _, table := range tables {
 		allowed[canonicalName(table.Name)] = true
 	}
+	// The bounded relaxation handles acyclic dependencies and terminates safely
+	// even when the source schema contains a cycle.
 	for iteration := 0; iteration < len(tables); iteration++ {
 		changed := false
 		for _, fk := range fks {
@@ -193,6 +210,7 @@ func svgLevels(tables []Table, fks []ForeignKey) map[string]int {
 	return levels
 }
 
+// renderSVGTable draws one card, folded-column summary, badges, and row ports.
 func renderSVGTable(b *strings.Builder, box *svgBox, group schemaGroup, fks []ForeignKey) {
 	badgeOffset, nameOffset := 6.0, 58.0
 	badgeSize, nameSize, typeSize := 7.5, 9.0, 7.5
@@ -228,6 +246,7 @@ func renderSVGTable(b *strings.Builder, box *svgBox, group schemaGroup, fks []Fo
 	b.WriteString("</g>\n")
 }
 
+// svgBadges returns the compact semantic markers displayed beside a column.
 func svgBadges(table Table, column Column, fks []ForeignKey) []string {
 	var badges []string
 	if containsName(primaryKey(table).Columns, column.Name) {
@@ -247,8 +266,10 @@ func svgBadges(table Table, column Column, fks []ForeignKey) []string {
 	return badges
 }
 
+// xmlText escapes user/schema text before placing it in SVG markup.
 func xmlText(value string) string { return html.EscapeString(value) }
 
+// xmlID converts a table name to an SVG-safe element identifier.
 func xmlID(value string) string {
 	var b strings.Builder
 	for _, r := range value {

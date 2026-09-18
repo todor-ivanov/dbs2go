@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
+// validateAndResolve checks internal references and expands validated table
+// constraints into the schema-wide ForeignKeys registry.
 func validateAndResolve(schema *Schema, states map[string]*tableState) error {
+	// First pass builds the table/column index and checks local references.
 	byName := make(map[string]*Table, len(schema.Tables))
 	for i := range schema.Tables {
 		table := &schema.Tables[i]
@@ -51,6 +54,8 @@ func validateAndResolve(schema *Schema, states map[string]*tableState) error {
 		}
 	}
 
+	// Resolve foreign keys only after every table and column has been indexed;
+	// this prevents forward references from being mistaken for missing objects.
 	for ti := range schema.Tables {
 		table := &schema.Tables[ti]
 		for ci := range table.Constraints {
@@ -94,6 +99,7 @@ func validateAndResolve(schema *Schema, states map[string]*tableState) error {
 	return nil
 }
 
+// hasColumn reports whether a table contains an identifier, case-insensitively.
 func hasColumn(table Table, name string) bool {
 	for _, column := range table.Columns {
 		if canonicalName(column.Name) == canonicalName(name) {
@@ -103,6 +109,7 @@ func hasColumn(table Table, name string) bool {
 	return false
 }
 
+// referencedConstraint finds the exact PK/UQ constraint targeted by an FK.
 func referencedConstraint(table Table, columns []string) string {
 	wanted := canonicalColumns(columns)
 	for _, constraint := range table.Constraints {
@@ -116,6 +123,7 @@ func referencedConstraint(table Table, columns []string) string {
 	return ""
 }
 
+// canonicalColumns creates a stable comparison key for ordered column lists.
 func canonicalColumns(columns []string) string {
 	out := make([]string, len(columns))
 	for i, column := range columns {

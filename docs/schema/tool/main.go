@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+// main parses command-line options, builds the validated model, and atomically
+// writes the requested JSON, Markdown, and optional native SVG artifacts.
 func main() {
 	var ddlPath, dialect, emit, outBase, svgOutBase, visualizations, layout string
 	flag.StringVar(&ddlPath, "ddl", "", "DDL file to parse")
@@ -49,6 +51,8 @@ func main() {
 	if svgOutBase == "" {
 		svgOutBase = outBase
 	}
+	// Keep all artifacts in memory until parsing and rendering succeed; the
+	// atomic writer below prevents a failed run from leaving partial outputs.
 	outputs := make(map[string][]byte, len(formats)+len(schemaGroups))
 	svgReferences := map[string]string{}
 	if views["svg"] {
@@ -86,6 +90,7 @@ func main() {
 	fmt.Printf("tables=%d columns=%d foreign_keys=%d auxiliary=%d\n", len(schema.Tables), columnCount(schema), len(schema.ForeignKeys), len(schema.Auxiliary))
 }
 
+// parseVisualizations validates and canonicalizes the visualization mode list.
 func parseVisualizations(value string) (map[string]bool, error) {
 	allowed := map[string]bool{"er": true, "domains": true, "svg": true}
 	out := map[string]bool{}
@@ -111,6 +116,7 @@ func parseVisualizations(value string) (map[string]bool, error) {
 	return out, nil
 }
 
+// parseEmitters validates output formats, accepting mermaid as a Markdown alias.
 func parseEmitters(value string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
@@ -133,6 +139,7 @@ func parseEmitters(value string) ([]string, error) {
 	return out, nil
 }
 
+// columnCount returns the total number of native columns in the schema.
 func columnCount(schema *Schema) int {
 	n := 0
 	for _, table := range schema.Tables {
@@ -141,6 +148,7 @@ func columnCount(schema *Schema) int {
 	return n
 }
 
+// fatalf reports a user-facing failure and exits with the tool's fatal status.
 func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "dbs-schema: "+format+"\n", args...)
 	os.Exit(2)

@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
+// schemaGroup defines a functional area and its visual identity.
 type schemaGroup struct {
 	Key, Title, Description, Fill, Stroke string
 }
 
+// schemaGroups is the canonical ordering shared by every rendered atlas.
 var schemaGroups = []schemaGroup{
 	{"core", "Core data and containment", "Datasets, blocks, files, runs, and luminosity sections.", "#E6F5ED", "#17734D"},
 	{"class", "Classification and lookup", "Dataset identity, eras, tiers, types, physics groups, and branch hashes.", "#E9F2FC", "#245FA9"},
@@ -22,12 +24,14 @@ var schemaGroups = []schemaGroup{
 	{"other", "Other operational tables", "Dialect-specific operational tables outside the common Oracle model.", "#F1F3F5", "#596675"},
 }
 
+// RenderOptions selects the visualization mode, layout density, and SVG links.
 type RenderOptions struct {
 	Visualizations map[string]bool
 	Layout         string
 	SVGReferences  map[string]string
 }
 
+// renderJSON serializes the validated model as deterministic indented JSON.
 func renderJSON(schema *Schema) ([]byte, error) {
 	data, err := json.MarshalIndent(schema, "", "  ")
 	if err != nil {
@@ -36,10 +40,13 @@ func renderJSON(schema *Schema) ([]byte, error) {
 	return append(data, '\n'), nil
 }
 
+// renderMarkdown produces the default compact domain atlas.
 func renderMarkdown(schema *Schema) string {
 	return renderMarkdownWithOptions(schema, RenderOptions{Visualizations: map[string]bool{"domains": true}, Layout: "compact"})
 }
 
+// renderMarkdownWithOptions renders the shared atlas while varying only its
+// selected relational-map subsection content.
 func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	if options.Layout == "" {
 		options.Layout = "compact"
@@ -117,6 +124,7 @@ func renderMarkdownWithOptions(schema *Schema, options RenderOptions) string {
 	return b.String()
 }
 
+// renderVisualizationWholeSchema renders exactly one whole-schema view for a mode.
 func renderVisualizationWholeSchema(schema *Schema, options RenderOptions) string {
 	switch {
 	case options.Visualizations["svg"]:
@@ -132,6 +140,7 @@ func renderVisualizationWholeSchema(schema *Schema, options RenderOptions) strin
 	}
 }
 
+// renderVisualizationGroup renders one of the five functional-area views.
 func renderVisualizationGroup(schema *Schema, group schemaGroup, options RenderOptions) string {
 	members := tablesInGroup(schema, group.Key)
 	if len(members) == 0 {
@@ -152,8 +161,10 @@ func renderVisualizationGroup(schema *Schema, group schemaGroup, options RenderO
 	}
 }
 
+// stats contains the constraint and index counts shown in the atlas header.
 type stats struct{ PrimaryKeys, Unique, Checks, Indexes int }
 
+// schemaStats counts table-level objects used by the Markdown summary.
 func schemaStats(schema *Schema) stats {
 	var out stats
 	for _, table := range schema.Tables {
@@ -172,6 +183,7 @@ func schemaStats(schema *Schema) stats {
 	return out
 }
 
+// renderArchitecture emits the stable high-level Mermaid architecture sketch.
 func renderArchitecture(layout string) string {
 	return "```mermaid\n" + mermaidDirective(layout) + "\n" +
 		"flowchart LR\n" +
@@ -185,6 +197,7 @@ func renderArchitecture(layout string) string {
 		"```\n"
 }
 
+// renderOverview emits the table-level whole-schema Mermaid relationship graph.
 func renderOverview(schema *Schema, layout string) string {
 	var b strings.Builder
 	b.WriteString("```mermaid\n" + mermaidDirective(layout) + "\nflowchart TB\n")
@@ -206,6 +219,8 @@ func renderOverview(schema *Schema, layout string) string {
 			orderedTables = append(orderedTables, mermaidID("table_"+table.Name))
 		}
 	}
+	// Invisible links impose a deterministic vertical sequence without adding
+	// visible relationships to the architecture graph.
 	writeMermaidVerticalOrder(&b, orderedTables)
 	for _, edge := range aggregateOverviewEdges(schema.ForeignKeys) {
 		b.WriteString(edge + "\n")
@@ -219,6 +234,7 @@ func renderOverview(schema *Schema, layout string) string {
 	return b.String()
 }
 
+// renderDomainMap emits a functional-area Mermaid graph with exact column endpoints.
 func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []ForeignKey, layout string, allColumns bool) string {
 	tableSet := map[string]bool{}
 	for _, table := range members {
@@ -260,6 +276,7 @@ func renderDomainMap(schema *Schema, group schemaGroup, members []Table, fks []F
 	return b.String()
 }
 
+// mapColumnsFor selects key and relationship-bearing columns unless all is true.
 func mapColumnsFor(table Table, fks []ForeignKey, all bool) []Column {
 	if all {
 		return table.Columns
@@ -296,6 +313,7 @@ func mapColumnsFor(table Table, fks []ForeignKey, all bool) []Column {
 	return out
 }
 
+// columnLabel formats a Mermaid column node with its semantic badges.
 func columnLabel(table Table, column Column, fks []ForeignKey) string {
 	var badges []string
 	if containsName(primaryKey(table).Columns, column.Name) {
@@ -321,6 +339,7 @@ func columnLabel(table Table, column Column, fks []ForeignKey) string {
 	return label
 }
 
+// renderTableDetails emits the complete collapsed dictionary entry for one table.
 func renderTableDetails(b *strings.Builder, schema *Schema, table Table, group schemaGroup) {
 	pk := primaryKey(table)
 	incoming, outgoing := relationshipDirections(schema.ForeignKeys, table.Name)
@@ -385,6 +404,7 @@ func renderTableDetails(b *strings.Builder, schema *Schema, table Table, group s
 	b.WriteString("\n</details>\n\n")
 }
 
+// renderAuxiliary preserves non-table DDL in grouped collapsed sections.
 func renderAuxiliary(b *strings.Builder, objects []AuxiliaryObject) {
 	byKind := map[string][]AuxiliaryObject{}
 	for _, object := range objects {
@@ -403,6 +423,7 @@ func renderAuxiliary(b *strings.Builder, objects []AuxiliaryObject) {
 	}
 }
 
+// primaryKey returns the table primary key or a placeholder when absent.
 func primaryKey(table Table) Constraint {
 	for _, constraint := range table.Constraints {
 		if constraint.Type == "PRIMARY KEY" {
@@ -412,6 +433,7 @@ func primaryKey(table Table) Constraint {
 	return Constraint{Name: "—"}
 }
 
+// uniqueColumn reports whether a column participates in a unique constraint.
 func uniqueColumn(table Table, column string) bool {
 	for _, constraint := range table.Constraints {
 		if constraint.Type == "UNIQUE" && containsName(constraint.Columns, column) {
@@ -421,6 +443,7 @@ func uniqueColumn(table Table, column string) bool {
 	return false
 }
 
+// isForeignKeyColumn reports whether a column is an FK source column.
 func isForeignKeyColumn(fks []ForeignKey, column string) bool {
 	for _, fk := range fks {
 		if containsName(fk.SourceColumns, column) {
@@ -430,6 +453,7 @@ func isForeignKeyColumn(fks []ForeignKey, column string) bool {
 	return false
 }
 
+// containsName compares SQL identifiers case-insensitively.
 func containsName(values []string, wanted string) bool {
 	for _, value := range values {
 		if canonicalName(value) == canonicalName(wanted) {
@@ -439,6 +463,7 @@ func containsName(values []string, wanted string) bool {
 	return false
 }
 
+// appendOnce appends a marker only when it is not already present.
 func appendOnce(values []string, value string) []string {
 	for _, existing := range values {
 		if existing == value {
@@ -448,6 +473,7 @@ func appendOnce(values []string, value string) []string {
 	return append(values, value)
 }
 
+// sourceIndex identifies explicit or primary-key indexes covering an FK prefix.
 func sourceIndex(schema *Schema, fk ForeignKey) string {
 	for _, table := range schema.Tables {
 		if canonicalName(table.Name) != canonicalName(fk.SourceTable) {
@@ -478,6 +504,7 @@ func sourceIndex(schema *Schema, fk ForeignKey) string {
 	return "no matching explicit source index"
 }
 
+// hasPrefixColumns reports whether prefix matches the leading columns in have.
 func hasPrefixColumns(have, prefix []string) bool {
 	if len(prefix) == 0 || len(have) < len(prefix) {
 		return false
@@ -490,6 +517,7 @@ func hasPrefixColumns(have, prefix []string) bool {
 	return true
 }
 
+// indexParts formats column and expression parts for dictionary output.
 func indexParts(index Index) string {
 	var out []string
 	for _, part := range index.Parts {
@@ -505,6 +533,7 @@ func indexParts(index Index) string {
 	return strings.Join(out, ", ")
 }
 
+// tablesInGroup returns tables assigned to a functional area in schema order.
 func tablesInGroup(schema *Schema, key string) []Table {
 	var out []Table
 	for _, table := range schema.Tables {
@@ -515,6 +544,7 @@ func tablesInGroup(schema *Schema, key string) []Table {
 	return out
 }
 
+// foreignKeysForGroup returns relationships assigned to a functional area.
 func foreignKeysForGroup(all []ForeignKey, group string) []ForeignKey {
 	var out []ForeignKey
 	for _, fk := range all {
@@ -525,6 +555,7 @@ func foreignKeysForGroup(all []ForeignKey, group string) []ForeignKey {
 	return out
 }
 
+// foreignKeyGroup assigns an FK to the target classification or source domain.
 func foreignKeyGroup(fk ForeignKey) string {
 	if tableGroupKey(fk.TargetTable) == "class" {
 		return "class"
@@ -543,6 +574,7 @@ func foreignKeyGroup(fk ForeignKey) string {
 	}
 }
 
+// relationshipDirections partitions a table's relationships by arrow direction.
 func relationshipDirections(all []ForeignKey, table string) (incoming, outgoing []ForeignKey) {
 	for _, fk := range all {
 		if canonicalName(fk.SourceTable) == canonicalName(table) {
@@ -555,6 +587,7 @@ func relationshipDirections(all []ForeignKey, table string) (incoming, outgoing 
 	return incoming, outgoing
 }
 
+// tableGroupKey maps a table name to one of the atlas functional areas.
 func tableGroupKey(name string) string {
 	groups := map[string]string{
 		"DATASETS": "core", "BLOCKS": "core", "FILES": "core", "FILE_LUMIS": "core", "DATASET_RUNS": "core",
@@ -569,6 +602,7 @@ func tableGroupKey(name string) string {
 	return "other"
 }
 
+// groupForTable returns the complete visual metadata for a table's area.
 func groupForTable(name string) schemaGroup {
 	key := tableGroupKey(name)
 	for _, group := range schemaGroups {
@@ -579,6 +613,7 @@ func groupForTable(name string) schemaGroup {
 	return schemaGroups[len(schemaGroups)-1]
 }
 
+// deleteRule normalizes an omitted ON DELETE clause to the displayed default.
 func deleteRule(value string) string {
 	if strings.TrimSpace(value) == "" {
 		return "NO ACTION"
@@ -586,6 +621,7 @@ func deleteRule(value string) string {
 	return strings.ToUpper(value)
 }
 
+// ternary selects one of two strings without introducing a dependency on helpers.
 func ternary(condition bool, yes, no string) string {
 	if condition {
 		return yes
@@ -593,6 +629,7 @@ func ternary(condition bool, yes, no string) string {
 	return no
 }
 
+// titleCase makes auxiliary-object headings readable without changing identifiers.
 func titleCase(value string) string {
 	words := strings.Fields(strings.ToLower(value))
 	for i, word := range words {
@@ -601,6 +638,7 @@ func titleCase(value string) string {
 	return strings.Join(words, " ")
 }
 
+// countNoun formats a count with a singular or plural noun.
 func countNoun(count int, noun string) string {
 	if count == 1 {
 		return fmt.Sprintf("1 %s", noun)
@@ -608,6 +646,8 @@ func countNoun(count int, noun string) string {
 	return fmt.Sprintf("%d %ss", count, noun)
 }
 
+// writeOutputsAtomically stages each output beside its destination and renames
+// only after the complete byte stream has been written and closed.
 func writeOutputsAtomically(outputs map[string][]byte) error {
 	paths := make([]string, 0, len(outputs))
 	for path := range outputs {
@@ -616,6 +656,8 @@ func writeOutputsAtomically(outputs map[string][]byte) error {
 	sort.Strings(paths)
 	temps := map[string]string{}
 	cleanup := func() {
+		// Temporary files are best-effort cleanup; the original destinations are
+		// never removed before their replacement is ready.
 		for _, temp := range temps {
 			_ = os.Remove(temp)
 		}
@@ -649,6 +691,7 @@ func writeOutputsAtomically(outputs map[string][]byte) error {
 	return nil
 }
 
+// mermaidID converts an SQL identifier into a stable Mermaid node identifier.
 func mermaidID(value string) string {
 	var b strings.Builder
 	b.WriteString("n_")
@@ -662,8 +705,10 @@ func mermaidID(value string) string {
 	return b.String()
 }
 
+// mermaidText escapes characters that have structural meaning in Mermaid labels.
 func mermaidText(value string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(value, "\"", "'"), "\n", " ")
 }
 
+// md escapes table-cell separators in generated Markdown.
 func md(value string) string { return strings.ReplaceAll(value, "|", "\\|") }

@@ -18,27 +18,34 @@ import (
 const schemaFormatVersion = 2
 
 var (
+	// namedNotNullRE captures Oracle's named inline NOT NULL form before it is
+	// normalized to syntax understood by GoSQLX.
 	namedNotNullRE = regexp.MustCompile(`(?i)\bCONSTRAINT\s+((?:"[^"]+"|` + "`[^`]+`" + `|[A-Za-z_][A-Za-z0-9_$#]*))\s+NOT\s+NULL\b`)
-	createIndexRE  = regexp.MustCompile(`(?is)^\s*CREATE\s+(UNIQUE\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s(]+)\s*\(`)
-	auxiliaryRE    = regexp.MustCompile(`(?is)^\s*(CREATE\s+SEQUENCE|CREATE\s+ROLE|GRANT|DROP\s+DATABASE|CREATE\s+DATABASE|USE)\b(?:\s+([^\s;]+))?`)
-	simpleIndexRE  = regexp.MustCompile(`(?is)^\s*("[^"]+"|` + "`[^`]+`" + `|[A-Za-z_][A-Za-z0-9_$#]*)(?:\s+(ASC|DESC))?\s*$`)
+	// createIndexRE and simpleIndexRE delimit the narrow expression-index fallback.
+	createIndexRE = regexp.MustCompile(`(?is)^\s*CREATE\s+(UNIQUE\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s(]+)\s*\(`)
+	auxiliaryRE   = regexp.MustCompile(`(?is)^\s*(CREATE\s+SEQUENCE|CREATE\s+ROLE|GRANT|DROP\s+DATABASE|CREATE\s+DATABASE|USE)\b(?:\s+([^\s;]+))?`)
+	simpleIndexRE = regexp.MustCompile(`(?is)^\s*("[^"]+"|` + "`[^`]+`" + `|[A-Za-z_][A-Za-z0-9_$#]*)(?:\s+(ASC|DESC))?\s*$`)
 )
 
+// tableState tracks a table while statements are accumulated before validation.
 type tableState struct {
 	table    Table
 	declared bool
 }
 
+// builder collects parsed tables, auxiliary statements, and adapter usage.
 type builder struct {
 	tables     map[string]*tableState
 	auxiliary  []AuxiliaryObject
 	adapterSet map[string]bool
 }
 
+// newBuilder returns an empty parser accumulator with initialized maps.
 func newBuilder() *builder {
 	return &builder{tables: map[string]*tableState{}, adapterSet: map[string]bool{}}
 }
 
+// table returns the canonical table state, creating it on first reference.
 func (b *builder) table(name string) *tableState {
 	key := canonicalName(name)
 	if found := b.tables[key]; found != nil {
@@ -49,6 +56,7 @@ func (b *builder) table(name string) *tableState {
 	return state
 }
 
+// parseSchema converts DDL bytes into a sorted, validated Schema model.
 func parseSchema(path string, input []byte, dialectName string) (*Schema, error) {
 	dialect, normalized, err := parseDialect(dialectName)
 	if err != nil {
@@ -60,6 +68,8 @@ func parseSchema(path string, input []byte, dialectName string) (*Schema, error)
 	}
 	b := newBuilder()
 	for i, item := range statements {
+		// A single malformed or unsupported statement invalidates the complete
+		// model; emitting a partial schema would hide missing relationships.
 		if err := b.consumeStatement(item, dialect, normalized); err != nil {
 			return nil, fmt.Errorf("statement %d at line %d: %w", i+1, item.Line, err)
 		}
@@ -102,6 +112,7 @@ func parseSchema(path string, input []byte, dialectName string) (*Schema, error)
 	return schema, nil
 }
 
+// parseDialect maps user-facing dialect names to GoSQLX dialect constants.
 func parseDialect(name string) (keywords.SQLDialect, string, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "oracle":
@@ -113,6 +124,8 @@ func parseDialect(name string) (keywords.SQLDialect, string, error) {
 	}
 }
 
+// consumeStatement handles one statement, preserving auxiliary DDL and routing
+// relational statements through GoSQLX plus narrowly scoped compatibility fallbacks.
 func (b *builder) consumeStatement(item statement, dialect keywords.SQLDialect, dialectName string) error {
 	if match := auxiliaryRE.FindStringSubmatch(item.SQL); match != nil {
 		kind := strings.ToUpper(strings.Join(strings.Fields(match[1]), " "))
@@ -144,6 +157,8 @@ func (b *builder) consumeStatement(item statement, dialect keywords.SQLDialect, 
 
 	tree, err := gosqlx.ParseWithDialect(sqlText, dialect)
 	if err != nil {
+		// Only expression indexes use the fallback: accepting arbitrary failed
+		// SQL here would make the schema appear complete when it is not.
 		if startsWithWords(sqlText, "CREATE INDEX") || startsWithWords(sqlText, "CREATE UNIQUE INDEX") {
 			idx, table, fallbackErr := parseExpressionIndex(item.SQL, item.Line)
 			if fallbackErr == nil {
@@ -154,6 +169,7 @@ func (b *builder) consumeStatement(item statement, dialect keywords.SQLDialect, 
 		}
 		return fmt.Errorf("GoSQLX parse failed: %v", err)
 	}
+	// An empty AST is treated as an error rather than silently accepting input.
 	if tree == nil || len(tree.Statements) == 0 {
 		return fmt.Errorf("GoSQLX returned no AST")
 	}
@@ -165,9 +181,12 @@ func (b *builder) consumeStatement(item statement, dialect keywords.SQLDialect, 
 	return nil
 }
 
+// consumeAST transfers one GoSQLX AST statement into the internal model.
 func (b *builder) consumeAST(stmt ast.Statement, line int, named map[string][]string, organization string) error {
 	switch node := stmt.(type) {
 	case *ast.CreateTableStatement:
+		// Table declarations establish the source-of-truth columns before
+		// later ALTER statements add relationships or indexes.
 		state := b.table(node.Name)
 		if state.declared {
 			return fmt.Errorf("table %s is declared more than once", node.Name)
@@ -186,6 +205,8 @@ func (b *builder) consumeAST(stmt ast.Statement, line int, named map[string][]st
 		}
 		return nil
 	case *ast.CreateIndexStatement:
+		// Indexes are kept separately from constraints because source indexes
+		// are reported alongside each FK in the generated registry.
 		idx := Index{Name: cleanName(node.Name), Unique: node.Unique, Method: node.Using, SourceLine: line}
 		for _, column := range node.Columns {
 			idx.Parts = append(idx.Parts, IndexPart{Column: cleanName(column.Column), Direction: column.Direction, Collation: column.Collate})
@@ -196,6 +217,8 @@ func (b *builder) consumeAST(stmt ast.Statement, line int, named map[string][]st
 		b.table(node.Table).table.Indexes = append(b.table(node.Table).table.Indexes, idx)
 		return nil
 	case *ast.AlterStatement:
+		// The adapter intentionally accepts only ALTER TABLE ADD CONSTRAINT;
+		// silently ignoring other ALTER operations would lose schema facts.
 		if node.Type != ast.AlterTypeTable {
 			return fmt.Errorf("unhandled ALTER object type %v", node.Type)
 		}
@@ -219,6 +242,7 @@ func (b *builder) consumeAST(stmt ast.Statement, line int, named map[string][]st
 	}
 }
 
+// convertColumn maps a GoSQLX column definition and extracts inline constraints.
 func convertColumn(column ast.ColumnDef, line int) (Column, []Constraint) {
 	out := Column{Name: cleanName(column.Name), Type: column.Type, Nullable: true}
 	var constraints []Constraint
@@ -248,6 +272,8 @@ func convertColumn(column ast.ColumnDef, line int) (Column, []Constraint) {
 	return out, constraints
 }
 
+// attachNamedNotNull restores names removed when Oracle inline NOT NULL syntax
+// is adapted to the parser's ordinary NOT NULL form.
 func attachNamedNotNull(column *Column, names []string) {
 	for _, name := range names {
 		attached := false
@@ -265,6 +291,7 @@ func attachNamedNotNull(column *Column, names []string) {
 	}
 }
 
+// convertConstraint maps a table-level GoSQLX constraint into the model.
 func convertConstraint(item ast.TableConstraint, line int) Constraint {
 	out := Constraint{Name: cleanName(item.Name), Type: strings.ToUpper(strings.TrimSpace(item.Type)), Columns: cleanNames(item.Columns), SourceLine: line}
 	if item.References != nil {
@@ -279,6 +306,7 @@ func convertConstraint(item ast.TableConstraint, line int) Constraint {
 	return out
 }
 
+// formatExpr renders an AST expression into stable single-line SQL text.
 func formatExpr(expr ast.Expression) string {
 	if expr == nil {
 		return ""
@@ -286,14 +314,20 @@ func formatExpr(expr ast.Expression) string {
 	return strings.TrimSpace(formatter.FormatExpression(expr, ast.FormatOptions{}))
 }
 
+// startsWithWords compares a statement prefix after normalizing whitespace.
 func startsWithWords(sqlText, prefix string) bool {
 	return strings.HasPrefix(strings.ToUpper(strings.Join(strings.Fields(sqlText), " ")), prefix)
 }
 
+// canonicalName returns the case-insensitive lookup form used for SQL names.
 func canonicalName(value string) string { return strings.ToUpper(cleanName(value)) }
+
+// cleanName removes surrounding SQL quoting while preserving the identifier text.
 func cleanName(value string) string {
 	return strings.Trim(strings.TrimSpace(value), "`\"")
 }
+
+// cleanNames applies cleanName to every identifier in a list.
 func cleanNames(values []string) []string {
 	out := make([]string, len(values))
 	for i := range values {
@@ -302,4 +336,5 @@ func cleanNames(values []string) []string {
 	return out
 }
 
+// compactSQL preserves auxiliary SQL while making it safe to place on one line.
 func compactSQL(value string) string { return strings.Join(strings.Fields(value), " ") }
